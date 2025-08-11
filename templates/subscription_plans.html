@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Plans</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 40px 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px; /* Increased max-width for more space */
+            margin: auto;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        p.subtitle {
+            font-size: 1.1em;
+            color: #666;
+            margin-bottom: 50px;
+        }
+        .plans-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap; /* Allows wrapping on smaller screens */
+        }
+        .plan-card {
+            background-color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            width: 300px;
+            text-align: left;
+            position: relative;
+            transition: transform 0.3s ease;
+            flex: 1 1 300px; /* Flexbox property to control card size */
+            max-width: 300px; /* Max width to prevent cards from getting too big */
+        }
+        .plan-card:hover {
+            transform: translateY(-10px);
+        }
+        .plan-card.premium {
+            border: 2px solid #3498db;
+            box-shadow: 0 12px 24px rgba(52, 152, 219, 0.3);
+        }
+        .plan-name {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .plan-price {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        .plan-price small {
+            font-size: 0.5em;
+            color: #888;
+        }
+        .plan-features {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 30px;
+        }
+        .plan-features li {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            font-size: 1em;
+            color: #555;
+        }
+        .plan-features li::before {
+            content: '✓';
+            color: #27ae60;
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .plan-button {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+        .plan-button:hover {
+            background-color: #2980b9;
+        }
+        /* Mobile-first approach: Adjusts layout for smaller screens */
+        @media (max-width: 1024px) {
+            .plans-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .plan-card {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Choose Your Profile Building Plan</h1>
+        <p class="subtitle">Elevate your professional profile and stand out to top recruiters.</p>
+        <div class="plans-container">
+            <!-- Plan 1: Resume Building -->
+            <div class="plan-card">
+                <div class="plan-name">Applywizz Resume</div>
+                <div class="plan-price">₹499<small> INR</small></div>
+                <ul class="plan-features">
+                    <li>Builds a resume with the highest ATS score.</li>
+                    <li>ATS-friendly layout & structure.</li>
+                    <li>Action verbs & quantified results.</li>
+                    <li>Job-relevant keyword alignment.</li>
+                </ul>
+                <a href="{% url 'payment_instructions' plan_id=1 %}" class="plan-button">Choose Plan</a>
+            </div>
+
+            <!-- Plan 2: Resume + Profile Portfolio -->
+            <div class="plan-card">
+                <div class="plan-name">Resume + Portfolio</div>
+                <div class="plan-price">₹999<small> INR</small></div>
+                <ul class="plan-features">
+                    <li>Everything in Applywizz Resume</li>
+                    <li>Professional Portfolio Website.</li>
+                    <li>Project write-ups with context.</li>
+                    <li>Interactive demos and GitHub links.</li>
+                </ul>
+                <a href="{% url 'payment_instructions' plan_id=2 %}" class="plan-button">Choose Plan</a>
+            </div>
+
+            <!-- Plan 3: Resume + Portfolio + Applying Jobs -->
+            <div class="plan-card premium">
+                <div class="plan-name">All-in-One Package</div>
+                <div class="plan-price">₹2999<small> INR</small></div>
+                <ul class="plan-features">
+                    <li>Everything in Resume + Portfolio</li>
+                    <li>Applying to jobs on your behalf.</li>
+                    <li>Monthly profile updates.</li>
+                    <li>Dedicated support.</li>
+                </ul>
+                <a href="{% url 'payment_instructions' plan_id=3 %}" class="plan-button">Choose Plan</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

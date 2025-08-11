@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Instructions</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .payment-box {
+            background-color: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+        .plan-details {
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #e8f4f8;
+            border-radius: 10px;
+            border: 1px solid #bde0f0;
+        }
+        .plan-details h2 {
+            margin: 0 0 10px 0;
+            color: #3498db;
+            font-size: 1.8em;
+        }
+        .plan-details p {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .plan-details span {
+            font-size: 1em;
+            color: #777;
+        }
+        .qr-code-section {
+            margin-bottom: 30px;
+        }
+        .qr-code-section img {
+            width: 200px;
+            height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        .qr-code-section p {
+            font-size: 1.1em;
+            color: #444;
+            margin-bottom: 10px;
+        }
+        .instructions-list {
+            list-style: none;
+            padding: 0;
+            text-align: left;
+            margin-bottom: 30px;
+        }
+        .instructions-list li {
+            margin-bottom: 10px;
+            font-size: 1em;
+            color: #666;
+            display: flex;
+            align-items: flex-start;
+        }
+        .instructions-list li::before {
+            content: counter(list-item) ". ";
+            counter-increment: list-item;
+            font-weight: bold;
+            margin-right: 10px;
+            color: #3498db;
+        }
+        .paid-button {
+            background-color: #27ae60;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .paid-button:hover {
+            background-color: #229954;
+        }
+    </style>
+</head>
+<body>
+    <div class="payment-box">
+        <h1>Complete Your Payment</h1>
+        
+        <div class="plan-details">
+            <h2>{{ plan.name }}</h2>
+            <p>Amount: ₹{{ plan.price }} INR</p>
+            <span>{{ plan.description }}</span>
+        </div>
+
+        <div class="qr-code-section">
+            <img src="{{ qr_code_url }}" alt="QR Code for Payment">
+            <p>Scan this QR code with your UPI app to complete the payment.</p>
+        </div>
+
+        <div class="instructions">
+            <h3>Payment Instructions:</h3>
+            <ul class="instructions-list">
+                <li>Open your preferred UPI payment application.</li>
+                <li>Scan the QR code.</li>
+                <li>Enter the exact amount: ₹{{ plan.price }} INR.</li>
+                <li>Complete the payment.</li>
+                <li>Note down the UTR number and take a screenshot of the transaction.</li>
+            </ul>
+        </div>
+
+        <p>Once your payment is complete, click the button below to provide your details and resume:</p>
+        <!-- Pass plan_id as a query parameter to the form page -->
+        <a href="{% url 'submit_payment_details' %}?plan_id={{ plan.id }}" class="paid-button">I Have Paid - Submit Details</a>
+    </div>
+</body>
+</html>

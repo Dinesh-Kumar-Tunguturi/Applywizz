@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATS Screening Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid #333;
+        }
+
+        .header {
+            font-size: 2em;
+            font-weight: bold;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #444;
+        }
+
+        .overall-section {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .overall-report-card {
+            flex: 3;
+            height: 100%;
+        }
+        
+        .pie-chart-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .pie-chart {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background-image: conic-gradient(
+                #4CAF50 0% 25%,
+                #FF9800 25% 50%,
+                #2196F3 50% 75%,
+                #E91E63 75% 100%
+            );
+        }
+        
+        .overall-skills-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+
+        .section-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .section-table th, .section-table td {
+            padding: 12px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+        }
+
+        .section-table th {
+            color: #bbb;
+            font-weight: normal;
+        }
+
+        .score-grade {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .grade-excellent { background-color: #4CAF50; color: white; }
+        .grade-good { background-color: #2196F3; color: white; }
+        .grade-average { background-color: #FF9800; color: white; }
+        .grade-poor { background-color: #E91E63; color: white; }
+
+        .detail-cards-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .sub-criteria-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .sub-criteria-table th, .sub-criteria-table td {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            text-align: left;
+            font-size: 0.9em;
+        }
+
+        .sub-criteria-table th {
+            color: #aaa;
+            font-weight: normal;
+        }
+        
+        .sub-criteria-table .score-value {
+            color: #ddd;
+        }
+        
+        .sub-criteria-table .insight-text {
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card header">
+        ATS Screening Report
+    </div>
+
+    <div class="overall-section">
+        <div class="card overall-report-card">
+            <h2 class="overall-skills-title">overall report of git, linked in, leet code, portfolios, certifications, etc.,</h2>
+            <div class="card">
+                <h3 style="font-size:1.2em;">Section-Level Performance</h3>
+                <table class="section-table">
+                    <thead>
+                        <tr>
+                            <th>SECTION</th>
+                            <th>SCORE</th>
+                            <th>GRADE</th>
+                            <th>WEIGHT</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><i class="fab fa-github"></i> GitHub Profile</td>
+                            <td>85/100</td>
+                            <td><span class="score-grade grade-excellent">Excellent</span></td>
+                            <td>25%</td>
+                        </tr>
+                        <tr>
+                            <td>&lt;/&gt; LeetCode/DSA Skills</td>
+                            <td>72/100</td>
+                            <td><span class="score-grade grade-good">Good</span></td>
+                            <td>20%</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-globe"></i> Portfolio Website</td>
+                            <td>68/100</td>
+                            <td><span class="score-grade grade-average">Average</span></td>
+                            <td>20%</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fab fa-linkedin"></i> LinkedIn Profile</td>
+                            <td>75/100</td>
+                            <td><span class="score-grade grade-good">Good</span></td>
+                            <td>15%</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-file-alt"></i> Resume (ATS Readiness)</td>
+                            <td>82/100</td>
+                            <td><span class="score-grade grade-excellent">Excellent</span></td>
+                            <td>10%</td>
+                        </tr>
+                        <tr>
+                            <td><i class="fas fa-certificate"></i> Certifications & Branding</td>
+                            <td>65/100</td>
+                            <td><span class="score-grade grade-average">Average</span></td>
+                            <td>10%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card pie-chart-card">
+            <h3 style="font-size:1.2em;">pie chart of overdaell representatipon</h3>
+            <div class="pie-chart"></div>
+        </div>
+    </div>
+    
+    <div class="detail-cards-container">
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin:0;">GitHub Profile</h3>
+                <div class="score-circle">75</div>
+            </div>
+            <span class="score-grade grade-good">Good</span>
+            <table class="sub-criteria-table">
+                <thead>
+                    <tr>
+                        <th>Sub-Criterion</th>
+                        <th>Score</th>
+                        <th>Insight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Public link present</td>
+                        <td>3/3</td>
+                        <td class="insight-text">Ensures GitHub visibility to recruiters.</td>
+                    </tr>
+                    <tr>
+                        <td>Pinned repositories (3+)</td>
+                        <td>5/5</td>
+                        <td class="insight-text">Reflects curated, visible proof of skills.</td>
+                    </tr>
+                    <tr>
+                        <td>Recent activity (commits in 90 days)</td>
+                        <td>5/5</td>
+                        <td class="insight-text">Recruiters prefer candidates with ongoing contributions.</td>
+                    </tr>
+                    <tr>
+                        <td>Clear README files</td>
+                        <td>6/6</td>
+                        <td class="insight-text">Shows communication, structure, and project clarity.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin:0;">LeetCode/DSA</h3>
+                <div class="score-circle">50</div>
+            </div>
+            <span class="score-grade grade-average">Average</span>
+            <table class="sub-criteria-table">
+                <thead>
+                    <tr>
+                        <th>Sub-Criterion</th>
+                        <th>Score</th>
+                        <th>Insight</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Link present</td>
+                        <td>2/2</td>
+                        <td class="insight-text">Confirms practice can be verified.</td>
+                    </tr>
+                    <tr>
+                        <td>100+ questions solved</td>
+                        <td>5/5</td>
+                        <td class="insight-text">Demonstrates strong dedication.</td>
+                    </tr>
+                    <tr>
+                        <td>Medium/Hard problem attempts</td>
+                        <td>4/4</td>
+                        <td class="insight-text">Shows depth beyond basic algorithms.</td>
+                    </tr>
+                    <tr>
+                        <td>Regular contest participation</td>
+                        <td>4/4</td>
+                        <td class="insight-text">Indicates consistency and competitive learning.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

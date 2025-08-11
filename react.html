@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body, html { margin: 0; height: 300vh; }
+
+    .parallax {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background-image: url('your-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: -1;
+      transition: background-position 0.1s;
+    }
+
+    .card {
+      position: sticky; top: 0;
+      height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 1;
+      transition: opacity 0.5s;
+    }
+  </style>
+</head>
+<body>
+  <div class="parallax"></div>
+  <div class="card" id="c0"><div class="card-container">
+      <h2 class="card-title">OUR STORY</h2>
+      <p class="card-text">
+        At Apply Wizz, we started with a single mission — to simplify job hunting for international students and working professionals abroad.<br />
+        What began as a passion project is now a full-scale service trusted by thousands to land real interviews faster.<br />
+        With every application we send, we bring clarity, momentum, and hope to job seekers chasing global careers.
+      </p>
+      <div class="achievements">
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">100+ Jobs Landed</div>
+          <div class="achievement-period">2023</div>
+        </div>
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">Global Reach</div>
+          <div class="achievement-period">Since 2021</div>
+        </div>
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">Top-rated Support</div>
+          <div class="achievement-period">24/7</div>
+        </div>
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">Trusted by 5k+</div>
+          <div class="achievement-period">Users Worldwide</div>
+        </div>
+      </div>
+    </div></div>
+  <div class="card" id="c1"><div class="card-container">
+      <h2 class="card-title">OUR STORY</h2>
+      <p class="card-text">
+        At Apply Wizz, we started with a single mission — to simplify job hunting for international students and working professionals abroad.<br />
+        What began as a passion project is now a full-scale service trusted by thousands to land real interviews faster.<br />
+        With every application we send, we bring clarity, momentum, and hope to job seekers chasing global careers.
+      </p>
+      <div class="achievements">
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">100+ Jobs Landed</div>
+          <div class="achievement-period">2023</div>
+        </div>
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">Global Reach</div>
+          <div class="achievement-period">Since 2021</div>
+        </div>
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">Top-rated Support</div>
+          <div class="achievement-period">24/7</div>
+        </div>
+        <div class="achievement-card">
+          <div class="icon"></div>
+          <div class="achievement-title">Trusted by 5k+</div>
+          <div class="achievement-period">Users Worldwide</div>
+        </div>
+      </div>
+    </div></div>
+  <div class="card" id="c2">Card 3</div>
+
+  <script>
+    const cards = document.querySelectorAll(".card");
+    window.addEventListener("scroll", () => {
+      const scrollY = window.scrollY;
+      // Simple parallax: background moves half the scroll speed
+      document.querySelector(".parallax").style.backgroundPositionY = `${scrollY * 0.5}px`;
+
+      // Fade cards as they scroll past
+      cards.forEach((card, index) => {
+        const offset = index * window.innerHeight;
+        const opacity = 1 - Math.min(Math.max((scrollY - offset) / window.innerHeight, 0), 1);
+        card.style.opacity = opacity;
+      });
+    });
+  </script>
+</body>
+</html>

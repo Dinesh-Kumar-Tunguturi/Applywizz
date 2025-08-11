@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Method</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .payment-container { background-color: white; padding: 40px; border-radius: 15px; box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1); text-align: center; max-width: 500px; width: 90%; }
+        h1 { color: #2c3e50; margin-bottom: 20px; }
+        .plan-summary { background-color: #f9f9f9; padding: 20px; border-radius: 10px; margin-bottom: 30px; }
+        .plan-summary h2 { margin: 0; color: #3498db; }
+        .plan-summary p { margin: 10px 0 0; font-size: 1.5em; font-weight: bold; }
+        .pay-button { background-color: #27ae60; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 1.2em; cursor: pointer; transition: background-color 0.3s ease; }
+        .pay-button:hover { background-color: #229954; }
+    </style>
+</head>
+<body>
+    <div class="payment-container">
+        <h1>Confirm Your Plan</h1>
+        <div class="plan-summary">
+            <h2>{{ plan.name }}</h2>
+            <p>₹{{ plan.price }} INR</p>
+        </div>
+        <form method="POST" action="{% url 'process_payment' %}">
+            {% csrf_token %}
+            <input type="hidden" name="plan_id" value="{{ plan_id }}">
+            <button type="submit" class="pay-button">Proceed to Payment</button>
+        </form>
+    </div>
+</body>
+</html>
