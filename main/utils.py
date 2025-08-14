@@ -8,17 +8,17 @@ import json
 from twilio.rest import Client
 
 # googlegemini API
-# apiKey= 'AIzaSyCXnp4pS7SnWt9aHOyqjtoKBA0kfdi15mg'
-# authDomain= "jobprephq.firebaseapp.com"
-# projectId= "jobprephq"
-# storageBucket= "jobprephq.appspot.com"
+apiKey= 'AIzaSyCXnp4pS7SnWt9aHOyqjtoKBA0kfdi15mg'
+authDomain= "jobprephq.firebaseapp.com"
+projectId= "jobprephq"
+storageBucket= "jobprephq.appspot.com"
 
 # GitHub token for higher rate limits
-# GITHUB_TOKEN = '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'
-# GITHUB_HEADERS = {
-#     "Authorization": f"token {GITHUB_TOKEN}",
-#     "Accept": "application/vnd.github.v3+json"
-# }
+GITHUB_TOKEN = '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'
+GITHUB_HEADERS = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github.v3+json"
+}
 # account_sid = 'AC87390e14ffc6d5c94efe3ea5e77a937d'
 # auth_token = '[AuthToken]'
 # client = Client(account_sid, auth_token)
