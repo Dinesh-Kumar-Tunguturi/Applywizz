@@ -5,11 +5,11 @@ from PyPDF2 import PdfReader
 import docx2txt
 
 # GitHub token for higher rate limits
-GITHUB_TOKEN = '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'
-GITHUB_HEADERS = {
-    "Authorization": f"token {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github.v3+json"
-}
+# GITHUB_TOKEN = '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'
+# GITHUB_HEADERS = {
+#     "Authorization": f"token {GITHUB_TOKEN}",
+#     "Accept": "application/vnd.github.v3+json"
+# }
 
 # Define scoring weights for different job domains
 TECHNICAL_WEIGHTS = {
