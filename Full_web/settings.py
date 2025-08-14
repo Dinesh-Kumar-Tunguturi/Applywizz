@@ -19,6 +19,38 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
+
+from pathlib import Path
+import environ
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 1) init + load .env (must come before any env("...") calls)
+env = environ.Env()
+environ.Env.read_env(BASE_DIR / ".env")
+
+# 2) core settings that also use env
+SECRET_KEY = env("DJANGO_SECRET_KEY")
+DEBUG = env.bool("DEBUG", default=True)
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+
+# 3) ✅ PLACE YOUR EMAIL BLOCK HERE
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ValueError("Configure either TLS(587) or SSL(465), not both")
+
+EMAIL_PORT = env.int("EMAIL_PORT", default=(465 if EMAIL_USE_SSL else 587))
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default=EMAIL_HOST_USER)
+SERVER_EMAIL = env("SERVER_EMAIL", default=EMAIL_HOST_USER)
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-9whs!rh&$=i94wieeumfw%tl^_^h38&ulmxug!4g8)c-y5-tmt'
 
@@ -123,25 +155,39 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 # Email settings for development
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # Prints email in terminal
 
-# For production with Gmail SMTP, replace with:
-"""
+# # For production with Gmail SMTP, replace with:
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'tunguturidineshkumar@gmail.com'
-EMAIL_HOST_PASSWORD = "aajx gtua irhh bihq"
-"""
-import os
-account_sid = os.getenv("TWILIO_SID")
-auth_token = os.getenv("TWILIO_AUTH_TOKEN")
-verify_sid = os.getenv("TWILIO_VERIFY_SID")
+EMAIL_HOST_PASSWORD = "sywe mqak kmzf zidw"
 
-headers = {
-    "Accept": "application/vnd.github.v3+json",
-    "User-Agent": "Mozilla/5.0",
-    "Authorization": "Bearer YOUR_GITHUB_TOKEN"
-}
+# import os
+# # account_sid = os.getenv("TWILIO_SID")
+# # auth_token = os.getenv("TWILIO_AUTH_TOKEN")
+# # verify_sid = os.getenv("TWILIO_VERIFY_SID")
+
+# headers = {
+#     "Accept": "application/vnd.github.v3+json",
+#     "User-Agent": "Mozilla/5.0",
+#     "Authorization": "Bearer YOUR_GITHUB_TOKEN"
+# }
+
+# TWILIO_ACCOUNT_SID = "ACceda0eef3948bf88da3558482598370f"
+# TWILIO_AUTH_TOKEN = "3e761b5d721349dafdc6d41765de6a7c"
+# TWILIO_VERIFY_SID = "VA1bf5d079bacb4814456a11c1ee87d5dc"
+
+# # settings.py
+# import environ, os
+# from pathlib import Path
+# BASE_DIR = Path(__file__).resolve().parent.parent
+# env = environ.Env()
+# env.read_env(BASE_DIR / ".env")  # loads local secrets
+# SECRET_KEY = env("DJANGO_SECRET_KEY")
+
+
 
 
 # Default primary key field type

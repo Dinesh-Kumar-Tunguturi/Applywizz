@@ -1,12 +1,27 @@
+# app/views.py
+
+from __future__ import annotations
+
 import os
-import random
 import re
-from django.core.mail import send_mail
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.shortcuts import render, redirect
+import io
+import base64
+import random
+import tempfile
+from typing import Dict, List
+
 from django.conf import settings
+from django.core.mail import send_mail
+from django.http import JsonResponse, HttpResponse, HttpResponseBadRequest
+from django.shortcuts import render, redirect
+from django.template.loader import get_template
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
+# Twilio (use environment/setting variables, not hard-coded)
 from twilio.rest import Client
+
+# ========= Your utils (as referenced in your file) =========
 from .utils import (
     extract_text_from_pdf,
     extract_text_from_docx,
@@ -14,388 +29,647 @@ from .utils import (
     extract_github_username,
     extract_leetcode_username,
     calculate_dynamic_ats_score,
-    verify_bank_transaction
 )
+
+# If you really need DOC parsing of legacy .doc:
+# from .utils import extract_text_from_doc  # uncomment if available
+
+# Non-technical scoring module (you referenced these)
+from .ats_score_non_tech import ats_scoring_non_tech_v2  # keep only the one you use
+
+# Role-based certifications (clean “Title – Issuer”, max 6)
+from .services.certifications import suggest_role_certifications
+
+# Payment form
 from .forms import PaymentDetailsForm
 
-# OTP Storage (In-memory, not for production)
-otp_storage = {}
-signup_otp_storage = {}
-
-# Twilio Credentials (Hardcoded for this example)
-from twilio.rest import Client
-account_sid = 'AC87390e14ffc6d5c94efe3ea5e77a937d'
-auth_token = '[AuthToken]'
-client = Client(account_sid, auth_token)
+# PDF export
+from xhtml2pdf import pisa
 
 
+# ========= In-memory OTP stores (not for production) =========
+otp_storage: Dict[str, str] = {}
+signup_otp_storage: Dict[str, str] = {}
+
+
+# ========= Plans =========
 PLANS = {
     1: {"name": "Applywizz Resume", "price": 499, "description": "Builds a resume with the highest ATS score."},
     2: {"name": "Resume + Profile Portfolio", "price": 999, "description": "Includes Resume building and a professional Portfolio Website."},
     3: {"name": "All-in-One Package", "price": 2999, "description": "Includes Resume, Portfolio, and applying to jobs on your behalf."},
 }
 
-# --- Basic Views ---
+
+# ========= Basic pages =========
 def landing(request):
     return render(request, "landing.html")
 
 def signin(request):
-    return render(request, "signin.html")
+    return render(request, "login.html")
 
 def login_view(request):
     return render(request, "login.html")
 
 def signup(request):
-    return render(request, "signup.html")
+    return render(request, "login.html")
 
 def about_us(request):
     return render(request, "about_us.html")
 
-# --- OTP via Twilio ---
-from django.views.decorators.csrf import csrf_exempt
+
+# ========= Twilio Verify (OTP over SMS) =========
+# Configure in settings:
+# TWILIO_ACCOUNT_SID = "ACxxxx"
+# TWILIO_AUTH_TOKEN  = "xxxx"
+# TWILIO_VERIFY_SID  = "VAxxxx"
+
+
+# from django.views.decorators.csrf import csrf_exempt
+# from django.http import JsonResponse
+# from django.conf import settings
+# from twilio.rest import Client
+
+# def _twilio_client():
+#     account_sid = getattr(settings, "TWILIO_ACCOUNT_SID", None)
+#     auth_token = getattr(settings, "TWILIO_AUTH_TOKEN", None)
+#     if not account_sid or not auth_token:
+#         raise Exception("Twilio credentials not configured")
+#     return Client(account_sid, auth_token)
+
+# @csrf_exempt
+# def send_otp(request):
+#     if request.method != "POST":
+#         return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+
+#     mobile = request.POST.get("mobile", "").strip()
+#     if not mobile or len(mobile) != 10 or not mobile.isdigit():
+#         return JsonResponse({"status": "error", "message": "Invalid mobile number"}, status=400)
+
+#     # Check if mobile is registered
+#     if mobile not in registered_users:
+#         return JsonResponse({"status": "error", "message": "Mobile number not registered. Please sign up first."}, status=400)
+
+#     client = _twilio_client()
+#     verify_sid = getattr(settings, "TWILIO_VERIFY_SID", None)
+#     if not verify_sid:
+#         return JsonResponse({"status": "error", "message": "Twilio Verify SID not configured"}, status=500)
+
+#     try:
+#         verification = client.verify.v2.services(verify_sid).verifications.create(
+#             to=f"+91{mobile}",
+#             channel="sms"
+#         )
+#         return JsonResponse({"status": "success", "message": "OTP sent successfully"})
+#     except Exception as e:
+#         return JsonResponse({"status": "error", "message": f"Error sending OTP: {str(e)}"}, status=500)
+
+
+
+# @csrf_exempt
+# def verify_otp(request):
+#     if request.method != "POST":
+#         return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
+
+#     mobile = request.POST.get("mobile", "").strip()
+#     otp = request.POST.get("otp", "").strip()
+
+#     if not mobile or not otp:
+#         return JsonResponse({"status": "error", "message": "Mobile and OTP required"}, status=400)
+
+#     client = _twilio_client()
+#     verify_sid = getattr(settings, "TWILIO_VERIFY_SID", None)
+#     if not verify_sid:
+#         return JsonResponse({"status": "error", "message": "Twilio Verify SID not configured"}, status=500)
+
+#     try:
+#         verification_check = client.verify.v2.services(verify_sid).verification_checks.create(
+#             to=f"+91{mobile}",
+#             code=otp
+#         )
+#         if verification_check.status == "approved":
+#             # You can authenticate user here or create session as needed
+#             return JsonResponse({"status": "success", "redirect_url": "/upload_resume"})
+#         else:
+#             return JsonResponse({"status": "error", "message": "Invalid OTP"}, status=400)
+#     except Exception as e:
+#         return JsonResponse({"status": "error", "message": f"Error verifying OTP: {str(e)}"}, status=500)
+
+
+# For demo: in-memory user storage, use real DB
+registered_users = {}  # key: mobile, value: email
+
+signup_otp_storage = {}
+
+import random, re
+from django.conf import settings
+from django.core.cache import cache
+from django.core.mail import send_mail
 from django.http import JsonResponse
-from twilio.rest import Client
+from django.views.decorators.csrf import csrf_exempt
 
-# ✅ Twilio credentials
-# account_sid = 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-# auth_token = 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
-verify_sid = 'VA93dc536826c0ab37d7894d8b241f09a2'
-client = Client(account_sid, auth_token)
+# Optional: keep your in-memory mapping if you're using it elsewhere
+registered_users = {}   # {mobile:str -> email:str}
 
+OTP_TTL_SECONDS = 300  # 5 minutes
+
+def norm_email(email: str) -> str:
+    return (email or "").strip().lower()
+
+def norm_mobile(mobile: str) -> str:
+    # Keep digits only; e.g., "+91 94945-57188" -> "919494557188"
+    return re.sub(r"\D+", "", (mobile or "").strip())
+
+def send_otp_email(to_email: str, otp: str, subject: str):
+    send_mail(
+        subject=subject,
+        message=f"Your OTP is {otp}. It will expire in {OTP_TTL_SECONDS // 60} minutes.",
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@applywizz.com"),
+        recipient_list=[to_email],
+        fail_silently=False,
+    )
+
+# ---------------------------
+# SIGNUP (email + mobile) -> OTP to email
+# ---------------------------
 @csrf_exempt
-def send_otp(request):
-    if request.method == "POST":
-        mobile = request.POST.get("mobile")
-        formatted_number = f"+91{mobile}"
-        try:
-            client.verify.v2.services(verify_sid).verifications.create(
-                to=formatted_number,
-                channel='sms'
-            )
-            return JsonResponse({"status": "success", "message": "OTP sent successfully."})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": f"Error sending OTP: {str(e)}"})
-    return JsonResponse({"status": "error", "message": "Invalid request"})
-
-@csrf_exempt
-def verify_otp(request):
-    if request.method == "POST":
-        mobile = request.POST.get("mobile")
-        otp = request.POST.get("otp")
-        formatted_number = f"+91{mobile}"
-        try:
-            verification_check = client.verify.v2.services(verify_sid).verification_checks.create(
-                to=formatted_number,
-                code=otp
-            )
-            if verification_check.status == "approved":
-                return JsonResponse({"status": "success", "redirect_url": "/upload_resume"})
-            else:
-                return JsonResponse({"status": "error", "message": "Invalid OTP. Try again."})
-        except Exception as e:
-            return JsonResponse({"status": "error", "message": f"Error verifying OTP: {str(e)}"})
-    return JsonResponse({"status": "error", "message": "Invalid request"})
-
-
-# --- OTP via Email ---
 def send_signup_otp(request):
-    if request.method == "POST":
-        email = request.POST.get("email")
-        otp = str(random.randint(1000, 9999))
-        signup_otp_storage[email] = otp
-        send_mail(
-            subject="Your ApplyWizz Signup OTP",
-            message=f"Your OTP for ApplyWizz signup is {otp}.",
-            from_email="no-reply@applywizz.com",
-            recipient_list=[email],
-            fail_silently=False,
-        )
-        return JsonResponse({"status": "success", "message": "OTP sent to your email!"})
-    return JsonResponse({"status": "error", "message": "Invalid request"})
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request"}, status=405)
 
+    email_raw = request.POST.get("email", "")
+    mobile_raw = request.POST.get("mobile", "")
+    email = norm_email(email_raw)
+    mobile = norm_mobile(mobile_raw)
+
+    if not email or not mobile:
+        return JsonResponse({"status": "error", "message": "Email and mobile required"}, status=400)
+
+    otp = f"{random.randint(100000, 999999)}"
+    cache_key = f"signup_otp:{email}:{mobile}"
+    cache.set(cache_key, otp, timeout=OTP_TTL_SECONDS)
+
+    try:
+        send_otp_email(email, otp, subject="Your ApplyWizz Signup OTP")
+        return JsonResponse({"status": "success", "message": "OTP sent to your email"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Failed to send OTP: {e}"}, status=500)
+
+@csrf_exempt
 def verify_signup_otp(request):
-    if request.method == "POST":
-        email = request.POST.get("email")
-        otp = request.POST.get("otp")
-        if signup_otp_storage.get(email) == otp:
-            del signup_otp_storage[email]
-            return JsonResponse({"status": "success", "redirect_url": "/"})
-        else:
-            return JsonResponse({"status": "error", "message": "Invalid OTP"})
-    return JsonResponse({"status": "error", "message": "Invalid request"})
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request"}, status=405)
 
-# --- Main Resume Analyzer Views ---
+    email = norm_email(request.POST.get("email", ""))
+    mobile = norm_mobile(request.POST.get("mobile", ""))
+    otp = (request.POST.get("otp", "") or "").strip()
+
+    cache_key = f"signup_otp:{email}:{mobile}"
+    stored_otp = cache.get(cache_key)
+
+    if stored_otp and stored_otp == otp:
+        # Register user (store mapping as you already do)
+        registered_users[mobile] = email
+        cache.delete(cache_key)
+        return JsonResponse({"status": "success", "redirect_url": "/login"})
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid or expired OTP"}, status=400)
+
+# ---------------------------
+# LOGIN (email only) -> OTP to email
+# ---------------------------
+@csrf_exempt
+def send_login_otp(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request"}, status=405)
+
+    email = norm_email(request.POST.get("email", ""))
+    if not email:
+        return JsonResponse({"status": "error", "message": "Email required"}, status=400)
+
+    otp = f"{random.randint(100000, 999999)}"
+    cache_key = f"login_otp:{email}"
+    cache.set(cache_key, otp, timeout=OTP_TTL_SECONDS)
+
+    try:
+        send_otp_email(email, otp, subject="Your ApplyWizz Login OTP")
+        return JsonResponse({"status": "success", "message": "OTP sent to your email"})
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": f"Failed to send OTP: {e}"}, status=500)
+
+@csrf_exempt
+def verify_login_otp(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request"}, status=405)
+
+    email = norm_email(request.POST.get("email", ""))
+    otp = (request.POST.get("otp", "") or "").strip()
+
+    cache_key = f"login_otp:{email}"
+    stored_otp = cache.get(cache_key)
+
+    if stored_otp and stored_otp == otp:
+        cache.delete(cache_key)
+        # TODO: log the user in (set session) if you have a User model
+        return JsonResponse({"status": "success", "redirect_url": "/upload_resume"})
+    else:
+        return JsonResponse({"status": "error", "message": "Invalid or expired OTP"}, status=400)
+
+# ========= Upload page =========
 def upload_resume(request):
-    return render(request, 'upload_resume.html')
+    return render(request, "upload_resume.html")
 
+
+# ========= Pie chart helper (dark theme friendly) =========
 import matplotlib
-matplotlib.use('Agg')  # ✅ Add this to avoid GUI backend issues
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import io
-import base64
 
-def generate_pie_chart(sections):
-    import matplotlib
-    matplotlib.use('Agg')
-    import matplotlib.pyplot as plt
-    import io, base64
+from typing import Dict
+import io, base64
+import matplotlib.pyplot as plt
 
-    labels = []
-    sizes = []
-    colors = ['#4CAF50', '#2196F3', '#FF9800', '#dc3545', '#673AB7', '#00BCD4']
-    legend_labels = []
+from typing import Dict
+import io, base64
+import matplotlib.pyplot as plt
 
-    # Filter out NaN, None, or non-numeric scores
-    for i, (label, data) in enumerate(sections.items()):
-        score = data.get('score', 0)
-        if isinstance(score, (int, float)) and not (score is None or score != score):  # NaN check
+def generate_pie_chart_tech(sections: Dict) -> str | None:
+    """
+    sections: { "Section Name": {"score": number}, ... }
+    Returns base64 PNG string or None if no data.
+    No percentages inside slices; legend (2 per row) shown at the bottom.
+    """
+    labels, sizes = [], []
+    for label, data in (sections or {}).items():
+        score = data.get("score", 0)
+        if isinstance(score, (int, float)) and score == score:  # not NaN
             labels.append(label)
-            sizes.append(score)
+            sizes.append(float(score))
 
     if not sizes or sum(sizes) == 0:
-        return None  # Avoid division by zero
+        return None
 
-    fig, ax = plt.subplots(figsize=(8, 8), facecolor='#121212')
-    wedges, texts, autotexts = ax.pie(
+    fig, ax = plt.subplots(figsize=(8, 8), facecolor="#121212")
+
+    # Pie without percentages or labels inside slices
+    wedges = ax.pie(
         sizes,
-        labels=labels,
-        autopct='%1.1f%%',
-        colors=colors[:len(labels)],
-        textprops={'color': "white", 'fontsize': 14}
-    )
-    plt.axis('equal')
+        labels=None,  # keep interior clean
+    )[0]
 
-    # Add legend below the pie chart
-    legend_labels = [
-        f"{label}: {size:.1f}%" for label, size in zip(labels, sizes)
-    ]
+    # Legend at bottom with slice colors
     ax.legend(
         wedges,
-        legend_labels,
-        title="Categories",
-        loc='lower center',
-        bbox_to_anchor=(0.5, -0.2),
-        fontsize=15,
-        title_fontsize=14,
+        labels,
+        loc="lower center",
+        bbox_to_anchor=(0.5, -0.15),
+        fontsize=18,
         frameon=False,
-        labelcolor='white'
+        labelcolor="white",
+        ncol=2,  # Two per row
+        title="Categories",
+        title_fontsize=13
     )
 
+    ax.set_facecolor("#121212")
+    plt.axis("equal")
     plt.tight_layout()
 
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', facecolor='#121212')
+    plt.savefig(buf, format="png", facecolor="#121212")
     buf.seek(0)
-    encoded = base64.b64encode(buf.read()).decode('utf-8')
+    encoded = base64.b64encode(buf.read()).decode("utf-8")
     buf.close()
+    plt.close(fig)
     return encoded
 
 
 
 
 
+# ========= TECHNICAL ANALYZE → report_technical.html =========
+# --- Helper for stable cache key ---
+import hashlib, json
+
+def _make_result_key(role_type: str, role_slug: str, resume_text: str, github_username: str = "", leetcode_username: str = "") -> str:
+    payload = json.dumps({
+        "role_type": role_type,
+        "role_slug": role_slug,
+        "resume_hash": hashlib.sha256((resume_text or "").encode("utf-8")).hexdigest(),
+        "github": github_username or "",
+        "leetcode": leetcode_username or "",
+    }, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-from .utils import (
-    extract_text_from_pdf,
-    extract_text_from_docx,
-    extract_applicant_name,
-    extract_github_username,
-    extract_leetcode_username,
-    calculate_dynamic_ats_score,
-    extract_links_from_pdf  # <- Make sure this exists
-)
-import os
-import re
+# --- Read-only report views (no recompute on refresh) ---
+def show_report_technical(request):
+    ctx = request.session.get("resume_context_tech")
+    if not ctx:
+        return redirect("upload_page")
+    return render(request, "resume_result.html", ctx)
 
+def show_report_nontechnical(request):
+    ctx = request.session.get("resume_context_nontech")
+    if not ctx:
+        return redirect("upload_page")
+    return render(request, "score_of_non_tech.html", ctx)
 
-import requests
+from collections import OrderedDict
 
-def fetch_dynamic_certifications(role):
-    """
-    Fetch recommended certifications dynamically from Coursera.
-    You can extend this to LinkedIn Learning, DataCamp, etc.
-    """
-    query = role.replace(" ", "+")
-    url = f"https://api.coursera.org/api/courses.v1?q=search&query={query}&limit=6"
-    
-    try:
-        response = requests.get(url, timeout=5)
-        data = response.json()
-        certs = []
-        for item in data.get("elements", []):
-            name = item.get("name", "").strip()
-            if name:
-                certs.append(f"{name} - Coursera")
-        return certs[:6]  # Max 6
-    except Exception as e:
-        print(f"[Error fetching certifications] {e}")
-        return []
-
-
-from main.utils import extract_links_combined 
-
-
-import os
-import re
-import tempfile
-import requests
-from PyPDF2 import PdfReader
-from django.shortcuts import render
-from .utils import (
-    extract_text_from_docx,
-    extract_links_combined,
-    extract_applicant_name,
-    extract_github_username,
-    extract_leetcode_username,
-    calculate_dynamic_ats_score,
-    generate_pie_chart
-)
-
-# ---------------- Helper Functions ----------------
-def extract_text_from_pdf_resume(file_path):
-    """Extract all text from a PDF."""
-    text = ""
-    reader = PdfReader(file_path)
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text + "\n"
-    return text
-
-def extract_certifications_from_text(resume_text):
-    """Extract certifications from resume text."""
-    certs_found = []
-    for line in resume_text.split("\n"):
-        if re.search(r"(certificate|certification|training|course)", line, re.IGNORECASE):
-            certs_found.append(line.strip())
-    return certs_found
-
-
-def get_role_based_certifications(role):
-    """
-    Return up to 6 recommended certifications for the given role.
-    This can later be replaced with an API call to Coursera/LinkedIn Learning.
-    """
-    cert_map = {
-        "python developer": [
-            "Python for Everybody - Coursera",
-            "Google IT Automation with Python - Coursera",
-            "Applied Data Science with Python - University of Michigan (Coursera)",
-            "Automate the Boring Stuff with Python - Udemy",
-            "Data Analysis with Python - freeCodeCamp",
-            "Django for Everybody - Coursera"
-        ],
-        "data analyst": [
-            "Google Data Analytics Professional Certificate - Coursera",
-            "IBM Data Analyst Professional Certificate - Coursera",
-            "Data Analysis with Python - freeCodeCamp",
-            "Statistics for Data Science - edX",
-            "Excel to MySQL: Analytic Techniques - Coursera",
-            "Data Visualization with Tableau - Coursera"
-        ],
+def _ordered_sections(sections):
+    key_mapping = {
+        "ATS": "Resume (ATS Readiness)",
+        "GitHub": "GitHub Score",
+        "LeetCode": "LeetCode Score",
+        "LinkedIn": "LinkedIn Profile",
+        "Portfolio": "Portfolio",
+        "Certifications": "Certifications",
     }
-    return cert_map.get(role.lower(), [])
 
+    desired_order = ["ATS", "GitHub", "LeetCode", "LinkedIn", "Portfolio", "Certifications"]
 
+    ordered = []
+    for name in desired_order:
+        key = key_mapping.get(name)
+        if key and key in sections:
+            ordered.append((key, sections[key]))
 
-from django.shortcuts import render, redirect
+    existing_keys = {k for k, _ in ordered}
+    for key, value in sections.items():
+        if key not in existing_keys:
+            ordered.append((key, value))
 
-def analyze_resume(request):
-    # Step 1: GET request → show results if they exist
-    if request.method == 'GET':
-        if 'resume_results' in request.session:
-            return render(request, 'resume_result.html', request.session['resume_results'])
-        return render(request, 'upload_resume.html')
-
-    # Step 2: POST request → analyze resume, store, and redirect
-    if request.method == 'POST' and request.FILES.get('resume'):
-        resume_file = request.FILES['resume']
-        ext = os.path.splitext(resume_file.name)[1].lower()
-
-        import tempfile
-        with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
-            for chunk in resume_file.chunks():
-                tmp.write(chunk)
-            temp_path = tmp.name
-
-        # Extract text and links
-        if ext == ".pdf":
-            extracted_links, resume_text = extract_links_combined(temp_path)
-        elif ext == ".docx":
-            resume_text = extract_text_from_docx(resume_file)
-            extracted_links = []
-        else:
-            request.session['resume_results'] = {"error": "Unsupported file format"}
-            return redirect('analyze_resume')
-
-        # Name and usernames
-        applicant_name = extract_applicant_name(resume_text)
-        github_username = extract_github_username(resume_text)
-        leetcode_username = extract_leetcode_username(resume_text)
-
-        # Run scoring
-        ats_result = calculate_dynamic_ats_score(resume_text, github_username, leetcode_username, extracted_links)
-        ats_score = ats_result['sections'].get('Resume (ATS Score)', {}).get('score', 0)
-        overall_score_average = ats_result.get('overall_score_average', 0)
-
-        # Detection
-        has_github = any("github.com" in link.get("url", "") for link in extracted_links)
-        has_linkedin = any("linkedin.com" in link.get("url", "") for link in extracted_links)
-        has_email = any(link.get("type") == "Email" for link in extracted_links)
-
-        # Pie chart
-        pie_chart_image = generate_pie_chart(ats_result["sections"])
-
-        # Certifications
-        existing_certs = [
-            line.strip() for line in resume_text.split("\n")
-            if any(k in line.lower() for k in ["certificate", "certification", "certified"])
-        ]
-        role = request.POST.get("role", "").strip() or "Your Role"
-        suggested_certs = get_role_based_certifications(role)
-        missing_certs = [cert for cert in suggested_certs if not any(cert.lower() in ec.lower() for ec in existing_certs)]
-
-        # Suggestions
-        all_suggestions = ats_result.get('suggestions', [])
-        if len(all_suggestions) > 2:
-            all_suggestions = all_suggestions[:2]
-
-        # Store in session
-        request.session['resume_results'] = {
-            "applicant_name": applicant_name or "N/A",
-            "contact_detection": "YES" if has_email else "NO",
-            "linkedin_detection": "YES" if has_linkedin else "NO",
-            "github_detection": "YES" if has_github else "NO",
-            "ats_score": int(ats_score),
-            "overall_score_average": int(overall_score_average),
-            "overall_grade": ats_result.get('overall_grade', "N/A"),
-            "score_breakdown": ats_result.get('sections', {}),
-            "suggestions": all_suggestions,
-            "detected_links": extracted_links,
-            "pie_chart_image": pie_chart_image,
-            "missing_certifications": missing_certs,
-            "role": role,
-            "show_contact_link": bool(all_suggestions),
-        }
-
-        # Redirect after POST → avoids recalculation on refresh
-        return redirect('analyze_resume')
+    return ordered
 
 
 
 
 
 
-
-
+# ========= TECHNICAL ANALYZE (PRG) =========
 
 from django.shortcuts import render
+from django.views.decorators.http import require_POST
 import os
-import tempfile
-# from .ats_score_non_tech import ats_scoring_for_non_tech , ats_scoring_non_tech_v2 # at top of file
-from .utils import *
 
+from django.views.decorators.http import require_POST
+from django.shortcuts import render
+from django.http import HttpResponseBadRequest
+import os
+
+from django.views.decorators.http import require_POST
+from django.shortcuts import render
+from django.http import HttpResponseBadRequest
+import os
+
+def _quick_resume_ats_percent(resume_text: str, role_title: str) -> float:
+    """
+    Heuristic ATS% (0–100) for non-technical: mirrors your ATS subcriteria.
+    """
+    t = _norm(resume_text)
+    # Sections
+    sections_present = any(k in t for k in ["experience","work history"]) and ("education" in t) and ("skills" in t)
+    single_column = True  # assume ok unless you detect otherwise
+    text_extractable = len(t) > 0
+    pts_layout = int(sections_present) + int(single_column) + int(text_extractable)  # /3
+
+    # Action verbs & quantified
+    action_verbs = ["led","built","created","designed","implemented","developed","optimized","increased","reduced","launched","improved","delivered"]
+    bullets = max(1, len(re.findall(r"(\n•|\n-|\n\d+\.)", resume_text)))
+    av_hits = sum(len(re.findall(rf"(^|\n|•|\-)\s*({v})\b", resume_text, flags=re.I)) for v in action_verbs)
+    av_per_bullet = min(1.0, av_hits / bullets)
+    quant_ratio = min(1.0, len(re.findall(r"\b\d+(\.\d+)?%?|\b(k|m|bn)\b", resume_text, flags=re.I)) / bullets)
+    pts_actions = (2 if av_per_bullet >= 0.8 else 1 if av_per_bullet >= 0.5 else 0) \
+                + (2 if quant_ratio >= 0.6 else 1 if quant_ratio >= 0.3 else 0)     # /4
+
+    # Keywords
+    kws = _NONTECH_ROLE_KEYWORDS.get(role_title, [])
+    cover = 0.0
+    if kws:
+        cover = sum(1 for k in kws if k in t) / len(kws)
+    pts_kw = 3 if cover >= 0.75 else 2 if cover >= 0.5 else 1 if cover >= 0.3 else 0  # /3
+
+    # Brevity
+    pages = max(1, round(len(resume_text) / 2000))
+    avg_bullets = bullets / max(1, len(re.findall(r"\b(company|employer|experience)\b", t)))
+    pts_brev = (1 if pages <= 2 else 0) + (1 if avg_bullets <= 7 else 0)              # /2
+
+    # Jargon / repetition
+    rep = 0.18 if "responsible for" in t else 0.08
+    jar = 0.22 if any(j in t for j in ["synergy","leverage"]) else 0.12
+    unique_skills_count = len(set(re.findall(r"[a-zA-Z][a-zA-Z0-9\+\#\.\-]{1,20}", resume_text))) // 50
+    pts_clean = (1 if rep <= 0.10 else 0) + (1 if jar <= 0.15 else 0) + (1 if unique_skills_count >= 8 else 0)  # /3
+
+    earned = pts_layout + pts_actions + pts_kw + pts_brev + pts_clean  # max 15
+    return round((earned / 15.0) * 100.0, 2)
+
+
+from .utils import derive_resume_metrics, ats_resume_scoring
+
+@require_POST
+def analyze_resume(request):
+    if request.POST.get("domain") != "technical":
+        return HttpResponseBadRequest("Please choose the Technical category.")
+
+    if "resume" not in request.FILES:
+        return HttpResponseBadRequest("Resume file is required.")
+
+    resume_file = request.FILES["resume"]
+    ext = os.path.splitext(resume_file.name)[1].lower()
+
+    # Extract text from resume file
+    if ext == ".pdf":
+        resume_text = extract_text_from_pdf(resume_file)
+    elif ext == ".docx":
+        resume_text = extract_text_from_docx(resume_file)
+    else:
+        return HttpResponseBadRequest("Unsupported file format. Please upload a PDF or DOCX.")
+
+    applicant_name = extract_applicant_name(resume_text) or "Candidate"
+    github_username = (request.POST.get("github_username") or "").strip() or extract_github_username(resume_text) or ""
+    leetcode_username = (request.POST.get("leetcode_username") or "").strip() or extract_leetcode_username(resume_text) or ""
+
+    role_slug = request.POST.get("tech_role", "software_engineer")
+    TECH_ROLE_MAP = {
+        "software_engineer": "Software Engineer",
+        "data_scientist": "Data Scientist",
+        "devops_engineer": "DevOps Engineer",
+        "web_developer": "Web Developer",
+        "mobile_developer": "Mobile App Developer",
+    }
+    role_title = TECH_ROLE_MAP.get(role_slug, "Software Engineer")
+
+    # Use your utils function to derive metrics
+    metrics = derive_resume_metrics(resume_text, role_title)
+
+    # Use ats_resume_scoring (from utils.py) to get ATS Resume scoring dict
+    ats_resume_score_dict = ats_resume_scoring(metrics)
+    metrics = derive_resume_metrics(resume_text, role_title)
+    ats_resume_score_dict = ats_resume_scoring(metrics)
+
+    # Prefer normalized score_100; fall back to computing it from subtotal if missing
+    raw_100 = ats_resume_score_dict.get("score_100")
+    if raw_100 is None:
+        earned = ats_resume_score_dict.get("subtotal", {}).get("earned", 0)
+        max_pts = ats_resume_score_dict.get("subtotal", {}).get("max", 15) or 15
+        raw_100 = round((earned / max_pts) * 100)
+
+    # Always keep it < 90
+    ats_resume_score = max(0, min(89, int(raw_100)))
+
+
+
+    # Calculate full ATS result (may have other sections)
+    ats_result = calculate_dynamic_ats_score(
+        resume_text=resume_text,
+        github_username=github_username,
+        leetcode_username=leetcode_username,
+        extracted_links=[],
+    )
+    sections = ats_result.get("sections", {})
+
+    # Override the ATS score in sections dict to your computed one from ats_resume_scoring
+    # Get the original Resume (ATS Score) section if it exists
+    original_ats_section = sections.get("Resume (ATS Score)", {})
+
+    # Update only the score, keep grade and sub_criteria as is (or empty defaults)
+    sections["Resume (ATS Score)"] = {
+        "score": ats_resume_score,
+        "grade": original_ats_section.get("grade", ""),
+        "sub_criteria": original_ats_section.get("sub_criteria", ats_resume_score_dict.get("items", [])),
+    }
+
+
+    # Define desired order of sections for display
+    desired_order = [
+        "Resume (ATS Score)",
+        "GitHub Profile",
+        "Portfolio Website",
+        "LeetCode/DSA Skills",
+        "LinkedIn",
+        "Certifications & Branding",
+    ]
+
+    # Prepare ordered sections list
+    score_breakdown_ordered = []
+    for key in desired_order:
+        if key in sections:
+            score_breakdown_ordered.append((key, sections[key]))
+    # Append any other sections not in desired_order at the end
+    for key, val in sections.items():
+        if key not in desired_order:
+            score_breakdown_ordered.append((key, val))
+
+    pie_chart_image = generate_pie_chart_tech(sections)
+    overall_score_average = int(ats_result.get("overall_score_average", 0))
+    suggestions = (ats_result.get("suggestions") or [])[:2]
+    recommended_certs = suggest_role_certifications(role_title)
+
+    context = {
+        "result_key": _make_result_key("technical", role_slug, resume_text, github_username, leetcode_username),
+        "applicant_name": applicant_name,
+        "contact_detection": "YES" if any(s in resume_text.lower() for s in ["@", "phone", "email"]) else "NO",
+        "linkedin_detection": "YES" if "linkedin.com" in resume_text.lower() else "NO",
+        "github_detection": "YES" if ("github.com" in resume_text.lower() or github_username) else "NO",
+        "ats_score": ats_resume_score,  # This is the ATS Resume score from ats_resume_scoring
+        "overall_score_average": overall_score_average,
+        "overall_grade": ats_result.get("overall_grade", ""),
+        "score_breakdown": sections,
+        "score_breakdown_ordered": score_breakdown_ordered,
+        "pie_chart_image": pie_chart_image,
+        "missing_certifications": recommended_certs,
+        "suggestions": suggestions,
+        "role": role_title,
+    }
+
+    request.session["resume_context_tech"] = context
+    request.session.modified = True
+    return redirect("show_report_technical")
+
+
+
+
+
+
+# --- Non-technical helpers (self-contained) ---
+
+import re
+
+_NONTECH_ROLE_KEYWORDS = {
+    "Human Resources": ["recruitment","hiring","onboarding","payroll","hrms","policy","compliance","talent acquisition","employee engagement","grievance","training","performance review"],
+    "Marketing": ["seo","sem","campaign","content","email marketing","social media","branding","analytics","conversion","google ads","meta ads","roi","copywriting"],
+    "Sales": ["crm","pipeline","lead generation","prospecting","negotiation","quota","closing","upsell","cross-sell","demo","forecast"],
+    "Finance": ["budgeting","forecasting","reconciliation","audit","financial analysis","p&l","variance","gl","sap","tally","excel","balance sheet","cash flow"],
+    "Customer Service": ["crm","zendesk","freshdesk","sla","csat","ticketing","call handling","escalation","knowledge base","aht","nps","first call resolution"],
+}
+
+def _norm(t: str) -> str:
+    return re.sub(r"\s+", " ", (t or "").lower()).strip()
+
+def _quick_resume_ats_percent(resume_text: str, role_title: str) -> float:
+    """
+    Heuristic ATS% (0–100) for non-technical: mirrors your ATS subcriteria.
+    """
+    t = _norm(resume_text)
+    # Sections
+    sections_present = any(k in t for k in ["experience","work history"]) and ("education" in t) and ("skills" in t)
+    single_column = True  # assume ok unless you detect otherwise
+    text_extractable = len(t) > 0
+    pts_layout = int(sections_present) + int(single_column) + int(text_extractable)  # /3
+
+    # Action verbs & quantified
+    action_verbs = ["led","built","created","designed","implemented","developed","optimized","increased","reduced","launched","improved","delivered"]
+    bullets = max(1, len(re.findall(r"(\n•|\n-|\n\d+\.)", resume_text)))
+    av_hits = sum(len(re.findall(rf"(^|\n|•|\-)\s*({v})\b", resume_text, flags=re.I)) for v in action_verbs)
+    av_per_bullet = min(1.0, av_hits / bullets)
+    quant_ratio = min(1.0, len(re.findall(r"\b\d+(\.\d+)?%?|\b(k|m|bn)\b", resume_text, flags=re.I)) / bullets)
+    pts_actions = (2 if av_per_bullet >= 0.8 else 1 if av_per_bullet >= 0.5 else 0) \
+                + (2 if quant_ratio >= 0.6 else 1 if quant_ratio >= 0.3 else 0)     # /4
+
+    # Keywords
+    kws = _NONTECH_ROLE_KEYWORDS.get(role_title, [])
+    cover = 0.0
+    if kws:
+        cover = sum(1 for k in kws if k in t) / len(kws)
+    pts_kw = 3 if cover >= 0.75 else 2 if cover >= 0.5 else 1 if cover >= 0.3 else 0  # /3
+
+    # Brevity
+    pages = max(1, round(len(resume_text) / 2000))
+    avg_bullets = bullets / max(1, len(re.findall(r"\b(company|employer|experience)\b", t)))
+    pts_brev = (1 if pages <= 2 else 0) + (1 if avg_bullets <= 7 else 0)              # /2
+
+    # Jargon / repetition
+    rep = 0.18 if "responsible for" in t else 0.08
+    jar = 0.22 if any(j in t for j in ["synergy","leverage"]) else 0.12
+    unique_skills_count = len(set(re.findall(r"[a-zA-Z][a-zA-Z0-9\+\#\.\-]{1,20}", resume_text))) // 50
+    pts_clean = (1 if rep <= 0.10 else 0) + (1 if jar <= 0.15 else 0) + (1 if unique_skills_count >= 8 else 0)  # /3
+
+    earned = pts_layout + pts_actions + pts_kw + pts_brev + pts_clean  # max 15
+    return round((earned / 15.0) * 100.0, 2)
+
+def _role_match_percent(resume_text: str, role_title: str) -> tuple[float, dict]:
+    """
+    Role-Match% (0–100) from keyword coverage + density.
+    Weighted 70% coverage, 30% density.
+    """
+    t = _norm(resume_text)
+    kws = _NONTECH_ROLE_KEYWORDS.get(role_title, [])
+    if not kws:
+        return 0.0, {"keywords": [], "coverage": 0.0, "occurrences": 0}
+
+    coverage_hits = sum(1 for k in kws if k in t)
+    coverage = coverage_hits / len(kws)
+    pattern = "|".join(map(re.escape, kws))
+    occurrences = len(re.findall(pattern, t))
+    density = min(1.0, occurrences / (len(kws) * 2))
+
+    score = 0.70 * coverage + 0.30 * density
+    return round(score * 100.0, 2), {"keywords": kws, "coverage": round(coverage, 2), "occurrences": occurrences}
+
+
+
+# ========= NON-TECHNICAL ANALYZE (PRG) =========
+from .utils import *
 from .utils import (
     extract_text_from_pdf,
     extract_text_from_docx,
@@ -405,14 +679,7 @@ from .utils import (
     calculate_dynamic_ats_score,
     extract_links_from_pdf  # <- Make sure this exists
 )
-
-
-from .ats_score_non_tech import ats_scoring_for_non_tech, ats_scoring_non_tech_v2
-
-import os
-import tempfile
-from django.shortcuts import render
-
+@require_POST
 def analyze_resume_v2(request):
     context = {
         "applicant_name": "N/A",
@@ -424,52 +691,82 @@ def analyze_resume_v2(request):
         "pie_chart_image": None,
         "detected_links": [],
         "error": None,
+        "contact_detection": "NO",
+        "github_detection": "NO",
+        "linkedin_detection": "NO",
     }
 
     if request.method == 'POST' and request.FILES.get('resume'):
         resume_file = request.FILES['resume']
         ext = os.path.splitext(resume_file.name)[1].lower()
 
-        # Save uploaded file to a temporary path
         with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
             for chunk in resume_file.chunks():
                 tmp.write(chunk)
             temp_path = tmp.name
 
-        # Check file format
         if ext not in [".pdf", ".docx", ".doc"]:
             context["error"] = "Unsupported file format. Please upload a PDF, DOCX, or DOC file."
             return render(request, 'score_of_non_tech.html', context)
 
-        # Extract resume text & links
         if ext == ".pdf":
             extracted_links, resume_text = extract_links_combined(temp_path)
         elif ext == ".docx":
             resume_text = extract_text_from_docx(temp_path)
             extracted_links = []
-        else:  # .doc
+        else:
             resume_text = extract_text_from_doc(temp_path)
             extracted_links = []
 
-        # Try to detect applicant name
+        # Normalize text lowercase for detection
+        text_lower = resume_text.lower()
+
+        # Contact detection: check for common indicators
+        contact_detection = "YES" if any(x in text_lower for x in ["@", "phone", "email"]) else "NO"
+
+        # GitHub detection: check for github link or username in links
+        github_detection = "YES" if ("github.com" in text_lower or any("github.com" in link for link in extracted_links)) else "NO"
+
+        # LinkedIn detection: check for linkedin link in text or extracted links
+        linkedin_detection = "YES" if ("linkedin.com" in text_lower or any("linkedin.com" in link for link in extracted_links)) else "NO"
+
         applicant_name = extract_applicant_name(resume_text) or "N/A"
 
-        # Run ATS scoring (handles breakdown and average calculation internally)
+        # Role title for non-tech (you can set as per your logic or default)
+        role_title = request.POST.get("role_title", "human resources")  # or some default non-tech role
+
+        # Calculate ATS resume score using utils
+        metrics = derive_resume_metrics(resume_text, role_title)
+        ats_resume_score_dict = ats_resume_scoring(metrics)
+        metrics = derive_resume_metrics(resume_text, role_title)
+        ats_resume_score_dict = ats_resume_scoring(metrics)
+
+        # Prefer normalized score_100; fall back to computing it from subtotal if missing
+        raw_100 = ats_resume_score_dict.get("score_100")
+        if raw_100 is None:
+            earned = ats_resume_score_dict.get("subtotal", {}).get("earned", 0)
+            max_pts = ats_resume_score_dict.get("subtotal", {}).get("max", 15) or 15
+            raw_100 = round((earned / max_pts) * 100)
+
+        # Always keep it < 90
+        ats_resume_score = max(0, min(89, int(raw_100)))  # 100→89, 90→80, 73→65
+ # scale to 0-100
+
+        # Calculate other ATS scoring as needed
         ats_result = ats_scoring_non_tech_v2(temp_path)
 
-        # Merge ATS results into context
         context.update({
-            "applicant_name": ats_result.get("applicant_name", applicant_name),
-            "contact_detection": ats_result.get("contact_detection", "NO"),
-            "linkedin_detection": ats_result.get("linkedin_detection", "NO"),
-            "github_detection": ats_result.get("github_detection", "NO"),
-            "ats_score": ats_result.get("overall_score_average", 0),
+            "applicant_name": applicant_name,
+            "ats_score": ats_resume_score,  # use calculated ATS score here
             "overall_score_average": ats_result.get("overall_score_average", 0),
             "overall_grade": ats_result.get("overall_grade", "N/A"),
             "score_breakdown": ats_result.get("score_breakdown", {}),
             "pie_chart_image": ats_result.get("pie_chart_image"),
             "suggestions": ats_result.get("suggestions", []),
             "detected_links": extracted_links,
+            "contact_detection": contact_detection,
+            "github_detection": github_detection,
+            "linkedin_detection": linkedin_detection,
         })
 
     return render(request, 'score_of_non_tech.html', context)
@@ -478,80 +775,109 @@ def analyze_resume_v2(request):
 
 
 
-# --- Profile Building & Payment Views ---
+
+
+
+# ========= Profile building & Payment =========
 def profile_building(request):
-    """
-    Renders the Profile Building page with subscription plans.
-    """
-    return render(request, 'subscription_plans.html')
+    return render(request, "subscription_plans.html")
 
-def payment_instructions(request, plan_id):
-    """
-    Displays payment instructions with a QR code for the selected plan.
-    """
-    plan = PLANS.get(plan_id)
+def payment_instructions(request, plan_id: int):
+    plan = PLANS.get(int(plan_id))
     if not plan:
-        return redirect('profile_building')
-
+        return redirect("profile_building")
     qr_code_url = "https://placehold.co/200x200/000000/FFFFFF?text=Scan+to+Pay"
-    
-    context = {
-        'plan': plan,
-        'qr_code_url': qr_code_url,
-    }
-    return render(request, 'payment_instructions.html', context)
+    return render(request, "payment_instructions.html", {"plan": plan, "qr_code_url": qr_code_url})
 
 def submit_payment_details(request):
     """
-    Handles the form for submitting payment details and resume,
-    and attempts to verify the transaction.
+    Saves uploaded screenshot and resume to MEDIA_ROOT/submissions/<UTR>/
     """
-    plan_id_get = request.GET.get('plan_id')
+    plan_id_get = request.GET.get("plan_id")
 
-    if request.method == 'POST':
+    if request.method == "POST":
         form = PaymentDetailsForm(request.POST, request.FILES)
         if form.is_valid():
-            name = form.cleaned_data['name']
-            utr_number = form.cleaned_data['utr_number']
-            transaction_screenshot = form.cleaned_data['transaction_screenshot']
-            resume = form.cleaned_data['resume']
-            plan_id_post = form.cleaned_data.get('plan_id')
-            
-            plan = PLANS.get(plan_id_post) if plan_id_post else None
-            expected_amount = plan['price'] if plan else 0
+            name = form.cleaned_data["name"]
+            utr_number = form.cleaned_data["utr_number"]
+            transaction_screenshot = form.cleaned_data["transaction_screenshot"]
+            resume = form.cleaned_data["resume"]
+            plan_id_post = form.cleaned_data.get("plan_id")
+            plan = PLANS.get(int(plan_id_post)) if plan_id_post else None
 
-            # This is where the manual verification logic would be
-            submission_dir = os.path.join(settings.MEDIA_ROOT, 'submissions', utr_number)
+            submission_dir = os.path.join(settings.MEDIA_ROOT, "submissions", utr_number)
             os.makedirs(submission_dir, exist_ok=True)
 
-            with open(os.path.join(submission_dir, transaction_screenshot.name), 'wb+') as destination:
+            with open(os.path.join(submission_dir, transaction_screenshot.name), "wb+") as dest:
                 for chunk in transaction_screenshot.chunks():
-                    destination.write(chunk)
-            
-            with open(os.path.join(submission_dir, resume.name), 'wb+') as destination:
+                    dest.write(chunk)
+
+            with open(os.path.join(submission_dir, resume.name), "wb+") as dest:
                 for chunk in resume.chunks():
-                    destination.write(chunk)
-            
-            return redirect('payment_submission_success')
+                    dest.write(chunk)
+
+            return redirect("payment_submission_success")
         else:
             if plan_id_get:
-                form = PaymentDetailsForm(request.POST, request.FILES, initial={'plan_id': plan_id_get})
-            else:
-                form = PaymentDetailsForm(request.POST, request.FILES)
+                form = PaymentDetailsForm(request.POST, request.FILES, initial={"plan_id": plan_id_get})
+            return render(request, "payment_form.html", {"form": form})
+    else:
+        form = PaymentDetailsForm(initial={"plan_id": plan_id_get} if plan_id_get else None)
 
-            return render(request, 'payment_form.html', {'form': form})
-    else: # GET request
-        if plan_id_get:
-            form = PaymentDetailsForm(initial={'plan_id': plan_id_get})
-        else:
-            form = PaymentDetailsForm()
-    
-    return render(request, 'payment_form.html', {'form': form})
+    return render(request, "payment_form.html", {"form": form})
 
 def payment_submission_success(request):
-    """
-    Renders a success page after the payment details form is submitted.
-    """
-    return render(request, 'payment_submission_success.html')
+    return render(request, "payment_submission_success.html")
 
 
+# ========= PDF download (server-side render) =========
+def download_resume_pdf(request):
+    """
+    Renders the last analysis context from session into a PDF.
+    Uses 'report_technical.html' by default if not specified; feel free to branch by role.
+    """
+    context = request.session.get("resume_context", {})
+    # Choose template dynamically if you stored role type, else default to technical template:
+    template_path = "resume_result.html"
+    # If you want to decide based on non-tech keys:
+    if context and context.get("github_detection") == "NO" and context.get("role") in ["Human Resources", "Marketing", "Sales", "Finance", "Customer Service"]:
+        template_path = "score_of_non_tech.html"
+
+    template = get_template(template_path)
+    html = template.render(context)
+
+    response = HttpResponse(content_type="application/pdf")
+    response["Content-Disposition"] = 'attachment; filename="resume_report.pdf"'
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    if pisa_status.err:
+        return HttpResponse("We had some errors <pre>" + html + "</pre>")
+    return response
+
+# views.py (add these)
+
+from django.urls import reverse
+import hashlib
+import json
+
+def _make_result_key(role_type: str, role_slug: str, resume_text: str, github_username: str = "", leetcode_username: str = "") -> str:
+    payload = json.dumps({
+        "role_type": role_type,
+        "role_slug": role_slug,
+        "resume_hash": hashlib.sha256((resume_text or "").encode("utf-8")).hexdigest(),
+        "github": github_username or "",
+        "leetcode": leetcode_username or "",
+    }, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+def show_report_technical(request):
+    ctx = request.session.get("resume_context_tech")
+    if not ctx:
+        # nothing cached: send back to upload
+        return redirect("upload_page")
+    return render(request, "resume_result.html", ctx)
+
+def show_report_nontechnical(request):
+    ctx = request.session.get("resume_context_nontech")
+    if not ctx:
+        return redirect("upload_page")
+    return render(request, "score_of_non_tech.html", ctx)

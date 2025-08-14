@@ -1,98 +1,142 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Apply Wizz — Cinematic Image Reveal</title>
 <style>
-.scroll-card {
-  width: 300px;
-  background-color: #1f1f1f;
-  color: #fff;
-  padding: 20px;
-  border-radius: 15px;
-  position: relative;
-  overflow: hidden;
-  height: 260px;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
-  transition: all 0.3s ease;
-}
+  :root{
+    --dur: 3400ms;         /* total time for the reveal */
+    --glow:#6aa1ff;        /* shimmer tint */
+    --bg:#0b0c12;          /* page background */
+  }
 
-.card-header {
-  font-size: 1.4em;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
+  html,body{
+    height:100%; margin:0; background:var(--bg);
+    display:grid; place-items:center;
+    font-family:system-ui, Segoe UI, Roboto, Arial, sans-serif; color:#cfe0ff;
+  }
 
-.card-score {
-  font-size: 3em;
-  color: #4CAF50;
-  font-weight: bold;
-}
+  .stage{
+    position:relative;
+    width:min(86vw,640px);
+    aspect-ratio: 1 / 1;     /* square */
+    overflow:visible;
+  }
 
-.card-grade {
-  font-size: 1em;
-  margin-top: 10px;
-  background: #4CAF50;
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 6px;
-}
+  /* Base image (blurred/zoomed in, then sharpens) */
+  .img-wrap{
+    position:relative; width:100%; height:100%;
+    filter: drop-shadow(0 18px 60px rgba(0,0,0,.5));
+  }
+  .img-wrap img.logo{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:8px;
+    opacity:0; transform:scale(1.05); filter:brightness(.85) blur(6px);
+    animation: baseIn calc(var(--dur)*.9) ease-out forwards;
+    animation-delay: calc(var(--dur)*.1);
+  }
 
-.card-overlay {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #292929;
-  color: #fff;
-  padding: 20px;
-  overflow-y: auto;
-  transition: top 0.3s ease;
-  z-index: 10;
-  border-radius: 15px;
-}
+  /* Write-on color band, clipped to the image shape */
+  .reveal{
+    position:absolute; inset:0; border-radius:8px;
+    -webkit-mask:url("Applywizz  Youtube Profile Picture 3.jpg") center/cover no-repeat;
+            mask:url("Applywizz  Youtube Profile Picture 3.jpg") center/cover no-repeat;
+    background:linear-gradient(90deg, #3f7bff, #51e56c);
+    background-size:0% 100%; background-position:left top; background-repeat:no-repeat;
+    box-shadow:0 0 28px rgba(63,123,255,.45);
+    animation: write var(--dur) cubic-bezier(.22,.61,.36,1) forwards;
+    mix-blend-mode:screen; opacity:.85; filter: blur(.2px);
+  }
 
-.scroll-card:hover .card-overlay {
-  top: 0;
-}
+  /* Shimmer sweep, also clipped to the image */
+  .shine{
+    position:absolute; inset:0; border-radius:8px;
+    -webkit-mask:url("Applywizz  Youtube Profile Picture 3.jpg") center/cover no-repeat;
+            mask:url("Applywizz  Youtube Profile Picture 3.jpg") center/cover no-repeat;
+    background: radial-gradient(120px 80% at left center, rgba(255,255,255,.95), var(--glow), rgba(106,161,255,0));
+    background-size:0% 100%; background-position:left center; background-repeat:no-repeat;
+    mix-blend-mode:screen; filter: blur(.5px) drop-shadow(0 0 14px rgba(106,161,255,.45));
+    animation: sweep var(--dur) cubic-bezier(.22,.61,.36,1) forwards;
+  }
 
-.card-overlay h3 {
-  margin-top: 0;
-  font-size: 1.1em;
-  color: #ff9800;
-  margin-bottom: 10px;
-}
+  /* Brief chromatic split that settles */
+  .split.r, .split.g{
+    position:absolute; inset:0; border-radius:8px; opacity:0; mix-blend-mode:screen; pointer-events:none;
+    background:url("Applywizz  Youtube Profile Picture 3.jpg") center/cover no-repeat;
+  }
+  .split.r{ filter:hue-rotate(-10deg) saturate(120%); transform:translateX(-8px); animation: splitIn var(--dur) ease-out forwards }
+  .split.g{ filter:hue-rotate(30deg)  saturate(120%); transform:translateX( 8px); animation: splitIn var(--dur) ease-out forwards; animation-delay:60ms }
 
-.card-overlay ul {
-  padding-left: 18px;
-  margin: 0;
-}
+  /* Scanlines overlay */
+  .scan{
+    position:absolute; inset:0; border-radius:8px; pointer-events:none; mix-blend-mode:overlay; opacity:.22;
+    background-image: repeating-linear-gradient(0deg, rgba(255,255,255,.25) 0 1px, transparent 1px 3px);
+    animation: scan 1.8s linear infinite;
+  }
 
-.card-overlay li {
-  margin-bottom: 8px;
-  font-size: 0.95em;
-}
+  /* Sparkles */
+  .spark{
+    position:absolute; width:9px; height:9px; border-radius:50%; pointer-events:none;
+    background: radial-gradient(circle,#fff 0,#9fc0ff 60%, transparent 70%);
+    filter: blur(.2px); opacity:0; animation: pop .9s ease-out forwards;
+  }
+  .spark.s1{ top:20%; left:18%; animation-delay: calc(var(--dur)*.12) }
+  .spark.s2{ top:35%; left:78%; animation-delay: calc(var(--dur)*.28) }
+  .spark.s3{ top:62%; left:30%; animation-delay: calc(var(--dur)*.46) }
+  .spark.s4{ top:72%; left:70%; animation-delay: calc(var(--dur)*.62) }
+
+  .caption{ margin-top:12px; text-align:center; color:#9fb3ff; opacity:.9; font-weight:600; letter-spacing:.2px }
+
+  /* Keyframes */
+  @keyframes baseIn{
+    0%  { opacity:0;   transform:scale(1.05); filter:brightness(.85) blur(6px) }
+    70% { opacity:.9;  transform:scale(1.01); filter:brightness(1)   blur(1.2px) }
+    100%{ opacity:1;   transform:scale(1);    filter:brightness(1.05) blur(0) }
+  }
+  @keyframes write{
+    from { background-size:0% 100% }
+    60%  { background-size:18% 100% }
+    to   { background-size:100% 100% }
+  }
+  @keyframes sweep{
+    from { background-size:0% 100% }
+    70%  { background-size:14% 100%; background-position:65% center }
+    to   { background-size:0% 100%;  background-position:right center }
+  }
+  @keyframes splitIn{
+    0%  { opacity:.25 }
+    70% { transform:translateX(0); opacity:.15 }
+    100%{ opacity:0 }
+  }
+  @keyframes scan{ to { background-position-y:6px } }
+  @keyframes pop{
+    0%   { opacity:0; transform:scale(.6) }
+    40%  { opacity:1 }
+    100% { opacity:0; transform:scale(1.6) }
+  }
 </style>
 </head>
 <body>
-    <div class="scroll-card">
-  <div class="card-header">GitHub Profile</div>
-  <div class="card-score">85</div>
-  <div class="card-grade">Excellent</div>
-  <div class="card-overlay">
-    <h3>Sub-Criteria</h3>
-    <ul>
-      <li>✔ Public Profile Link (3/3)</li>
-      <li>✔ 3+ Pinned Repos (5/5)</li>
-      <li>✔ Recent Commits (5/5)</li>
-      <li>✔ Clear README (6/6)</li>
-      <li>✔ Domain Projects (6/6)</li>
-    </ul>
-  </div>
-</div>
+  <div class="stage">
+    <div class="img-wrap">
+      <!-- Use your image as-is -->
+      <img class="logo" src="static\images\Applywizz  Youtube Profile Picture 3.jpg" alt="Apply Wizz Profile"/>
 
+      <!-- Animated layers -->
+      <div class="reveal" aria-hidden="true"></div>
+      <div class="shine"  aria-hidden="true"></div>
+      <div class="split r" aria-hidden="true"></div>
+      <div class="split g" aria-hidden="true"></div>
+      <div class="scan"    aria-hidden="true"></div>
+
+      <!-- Sparkle pops -->
+      <span class="spark s1"></span>
+      <span class="spark s2"></span>
+      <span class="spark s3"></span>
+      <span class="spark s4"></span>
+    </div>
+  </div>
+
+  <div class="caption">Cinematic write-on reveal & glow — drop this block into your loader/splash.</div>
 </body>
 </html>

@@ -338,7 +338,7 @@ def ats_scoring_non_tech_v2(file_path, applicant_name="Candidate"):
     overall_score_average = int((total_score / total_weight) * 100)
 
     # Pie chart
-    pie_chart_image = generate_pie_chart(score_breakdown)
+    pie_chart_image = generate_pie_chart_v2(score_breakdown)
 
     return {
         "applicant_name": applicant_name,

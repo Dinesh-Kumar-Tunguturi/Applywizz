@@ -15,16 +15,17 @@
         <div id="step1">
             <label>Mobile Number</label>
             <input type="text" id="mobile" class="form-control mb-3" placeholder="Enter mobile number">
-            <!-- <button id="sendOtpBtn" class="btn btn-success w-100">Send OTP</button> -->
-             <button id="sendOtpBtn" class="btn btn-success w-100" onclick="window.location.href='/upload_resume';">
+            <button id="sendOtpBtn" class="btn btn-success w-100">Send OTP</button>
+            <label>Don't have account? <a href="{% url 'signup' %}">signup</a> here..</label>
+             <!-- <button id="sendOtpBtn" class="btn btn-success w-100" onclick="window.location.href='/upload_resume';">
     Send OTP
-</button>
+</button> -->
 
         </div>
 
         <div id="step2" style="display:none;">
             <label>Enter OTP</label>
-            <input type="text" id="otp" class="form-control mb-3" placeholder="Enter 4-digit OTP">
+            <input type="text" id="otp" class="form-control mb-3" placeholder="Enter 6-digit OTP">
             <button id="verifyOtpBtn" class="btn btn-primary w-100">Verify OTP</button>
             <!-- <button id="verifyOtpBtn" class="btn btn-primary w-100">Verify OTP</button> -->
         </div>

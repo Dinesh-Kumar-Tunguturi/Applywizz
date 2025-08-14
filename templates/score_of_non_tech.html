@@ -136,7 +136,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 300px;
+            min-height: 580px;
         }
         .pie-chart-card h3 {
             font-size: 1.2em;
@@ -233,10 +233,17 @@
         .recommendations-section h3 {
             color: #ff9800;
         }
+        #report-content {
+    background-color: #121212; /* Match your theme */
+    padding: 40px;
+}
+
+
     </style>
 </head>
 <body>
 {% csrf_token %}
+<div id="report-content">
 <div class="report-container">
     <div class="header">
         <div>
@@ -254,7 +261,7 @@
                 <div class="score">{{ ats_score }}</div>
             </div>
             <div class="{% if overall_score_average > 80 %}score-box square-score-box{% elif overall_score_average >= 66 %}score-box-orange square-score-box{% else %}score-box-red square-score-box{% endif %}">
-                <div class="label">Overall Score</div>
+                <div class="label">Profile Score</div>
                 <div class="score">{{ overall_score_average }}</div>
             </div>
         </div>
@@ -273,15 +280,16 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for section_name, data in score_breakdown.items %}
-                    <tr>
-                        <td>{{ section_name }}</td>
-                        <td>{{ data.score }}</td>
-                        <td><span class="score-grade grade-{{ data.grade|lower }}">{{ data.grade }}</span></td>
-                        <td>{{ data.weight }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+    {% for section_name, data in score_breakdown.items %}
+    <tr>
+        <td>{{ section_name }}</td>
+        <td>{% if data.score %}{{ data.score }}{% else %}-{% endif %}</td>
+        <td><span class="score-grade grade-{{ data.grade|lower }}">{{ data.grade }}</span></td>
+        <td>{{ data.weight }}</td>
+    </tr>
+    {% endfor %}
+</tbody>
+
             </table>
         </div>
         
@@ -294,57 +302,171 @@
     </div>
     
     <div class="content-grid">
-        {% for section_name, data in score_breakdown.items %}
-        <div class="card section-card">
-            <div class="section-header">
-                <h3>{{ section_name }}</h3>
-                <div class="score-circle" style="background-color: {% if data.grade == 'Excellent' %}#4CAF50{% elif data.grade == 'Good' %}#2196F3{% elif data.grade == 'Average' %}#FF9800{% else %}#dc3545{% endif %};">{{ data.score }}</div>
+    {% for section_name, data in score_breakdown.items %}
+    <div class="card section-card">
+        <div class="section-header">
+            <h3>{{ section_name }}</h3>
+            <div class="score-circle"
+                style="background-color:
+                    {% if data.grade == 'Excellent' %}#4CAF50
+                    {% elif data.grade == 'Good' %}#2196F3
+                    {% elif data.grade == 'Average' %}#FF9800
+                    {% else %}#dc3545
+                    {% endif %};">
+                {% if data.score %}
+                    {{ data.score }}
+                {% else %}
+                    -
+                {% endif %}
             </div>
-            {% if data.sub_criteria %}
-            <table class="sub-criteria-table">
-                <thead>
-                    <tr>
-                        <th>Sub-Criterion</th>
-                        <th>Score</th>
-                        <th>Insight</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for criterion in data.sub_criteria %}
-                    <tr>
-                        <td>{{ criterion.name }}</td>
-                        <td>{{ criterion.score }}/{{ criterion.weight }}</td>
-                        <td class="insight-text">{{ criterion.insight }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
-            {% if data.recommendations %}
-            <div class="recommendations-section">
-                <h3>Recommendations</h3>
-                <ul class="recommendations-list">
-                    {% for rec in data.recommendations %}
-                    <li>{{ rec }}</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
         </div>
-        {% endfor %}
+        {% if data.sub_criteria %}
+        <table class="sub-criteria-table">
+            <thead>
+                <tr>
+                    <th>Sub-Criterion</th>
+                    <th>Score</th>
+                    <th>Insight</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for criterion in data.sub_criteria %}
+                <tr>
+                    <td>{{ criterion.name }}</td>
+                    <td>
+                        {% if criterion.score %}
+                            {{ criterion.score }}
+                        {% else %}
+                            -
+                        {% endif %}
+                        {% if criterion.weight %}/{{ criterion.weight }}{% endif %}
+                    </td>
+                    <td class="insight-text">{{ criterion.insight }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
     </div>
-    
-    {% if suggestions %}
-    <div class="recommendations-section">
-        <h2>Suggestions for Improvement</h2>
+    {% endfor %}
+</div>
+
+
+
+        {% if missing_certifications %}
+    <div class="recommendations-section" style="margin-top: 20px;">
+        <h2>Recommended Certifications for {{ role|default:"Your Role" }}</h2>
+        <p>Based on your resume and target role, you may consider adding these certifications:</p>
         <ul class="recommendations-list">
-            {% for suggestion in suggestions %}
-            <li>{{ suggestion }}</li>
+            {% for cert in missing_certifications %}
+                <li>{{ cert }}</li>
             {% endfor %}
         </ul>
     </div>
     {% endif %}
+
+    {% if suggestions %}
+    <div class="recommendations-section" style="margin-top: 20px;">
+        <h2>Suggestions</h2>
+        <ul class="recommendations-list">
+            {% for suggestion in suggestions|slice:":2" %}
+                <li>{{ suggestion }}</li>
+            {% endfor %}
+        </ul>
+<div style="margin-top: 30px; text-align: center;">
+    <a href="https://wa.me/17542675956" target="_blank" 
+       style="display: inline-block; background-color: #25D366; color: white; 
+              font-weight: bold; font-size: 1.1em; text-decoration: none; 
+              padding: 12px 25px; border-radius: 8px; 
+              box-shadow: 0 4px 10px rgba(0,0,0,0.3); 
+              transition: background-color 0.3s ease;">
+       📞 Please contact me for more details...
+    </a>
 </div>
 
+    </div>
+    {% endif %}
+</div>
+
+
+</div>
+
+<body>
+{% csrf_token %}
+
+<!-- Added wrapper for PDF content -->
+<div id="report-content">
+<div class="report-container">
+    <!-- ✅ Your full existing report content here stays exactly the same -->
+    ...
+</div>
+</div> <!-- End #report-content -->
+
+<!-- ✅ Moved download button outside the report-content so it doesn't appear in PDF -->
+<div style="text-align: center; margin-top: 40px;">
+    <button id="downloadPDF"
+        style="padding: 12px 25px; background-color: #4CAF50; color: white; 
+               font-size: 1.2em; font-weight: bold; border: none; border-radius: 8px;
+               box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer;">
+        📥 Download Report
+    </button>
+</div>
+
+<!-- JS Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  document.getElementById("downloadPDF").addEventListener("click", function () {
+    const { jsPDF } = window.jspdf;
+    const reportContent = document.getElementById("report-content");
+
+    // Save original width so we can restore later
+    const originalWidth = reportContent.style.width;
+
+    // Set fixed desktop width for better clarity (adjust if needed)
+    reportContent.style.width = "1200px";
+
+    html2canvas(reportContent, {
+      scale: 4,                      // High scale for sharp text
+      backgroundColor: "#121212",    // Dark theme background
+      scrollY: -window.scrollY       // Capture entire visible content properly
+    }).then(canvas => {
+      // Restore original width immediately after capture
+      reportContent.style.width = originalWidth;
+
+      const imgData = canvas.toDataURL("image/png");
+
+      // Convert px to mm (1 px = 0.264583 mm)
+      const pxToMm = 0.264583;
+
+      // Calculate PDF page width and height dynamically from canvas dimensions
+      const pdfWidth = canvas.width * pxToMm;
+      const pdfHeight = canvas.height * pxToMm;
+
+      // Create PDF with custom page size (dynamic width and height)
+      const pdf = new jsPDF({
+        unit: "mm",
+        format: [pdfWidth, pdfHeight],
+        orientation: "portrait"
+      });
+
+      // Fill background with dark color (optional)
+      pdf.setFillColor(18, 18, 18);
+      pdf.rect(0, 0, pdfWidth, pdfHeight, "F");
+
+      // Add the image (fill entire page)
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+      // Save PDF
+      pdf.save("resume_report.pdf");
+    }).catch(e => {
+      alert("Error generating PDF: " + e.message);
+      reportContent.style.width = originalWidth;  // Ensure restore on error too
+    });
+  });
+});
+</script>
 </body>
 </html>

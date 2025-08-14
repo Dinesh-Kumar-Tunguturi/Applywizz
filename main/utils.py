@@ -7,15 +7,21 @@ import docx2txt
 import json
 from twilio.rest import Client
 
+# googlegemini API
+apiKey= 'AIzaSyCXnp4pS7SnWt9aHOyqjtoKBA0kfdi15mg'
+authDomain= "jobprephq.firebaseapp.com"
+projectId= "jobprephq"
+storageBucket= "jobprephq.appspot.com"
+
 # GitHub token for higher rate limits
 GITHUB_TOKEN = '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'
 GITHUB_HEADERS = {
     "Authorization": f"token {GITHUB_TOKEN}",
     "Accept": "application/vnd.github.v3+json"
 }
-account_sid = 'AC87390e14ffc6d5c94efe3ea5e77a937d'
-auth_token = '[AuthToken]'
-client = Client(account_sid, auth_token)
+# account_sid = 'AC87390e14ffc6d5c94efe3ea5e77a937d'
+# auth_token = '[AuthToken]'
+# client = Client(account_sid, auth_token)
 
 # Define scoring weights for different job domains
 TECHNICAL_WEIGHTS = {
@@ -482,13 +488,13 @@ def generate_pie_chart(sections):
         else:
             colors.append('#dc3545')
 
-    plt.figure(figsize=(6, 6), facecolor='#121212')  # Match dark theme
+    plt.figure(figsize=(10, 10), facecolor='#121212')  # Match dark theme
     plt.pie(
         sizes,
         labels=labels,
         autopct='%1.1f%%',
         colors=colors,
-        textprops={'color': "w"}
+        textprops={'color': "w", 'fontsize': 14}
     )
     plt.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
     plt.tight_layout()
@@ -500,3 +506,235 @@ def generate_pie_chart(sections):
     buf.close()
     plt.close()  # Free up memory
     return encoded
+
+
+def generate_pie_chart_v2(sections):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    import io, base64
+
+    # Only keep the five main aspects
+    main_aspects = [
+        "Format & Layout",
+        "File Type & Parsing",
+        "Section Headings & Structure",
+        "Job-Title & Core Skills",
+        "Dedicated Skills Section"
+    ]
+
+    labels = []
+    sizes = []
+    colors = ['#4CAF50', '#2196F3', '#FF9800', '#dc3545', '#673AB7']
+
+    for aspect in main_aspects:
+        if aspect in sections:
+            score = sections[aspect].get('score', 0)
+            labels.append(aspect)
+            sizes.append(score)
+
+    if not sizes or sum(sizes) == 0:
+        return None  # Avoid division by zero
+
+    fig, ax = plt.subplots(figsize=(10, 10), facecolor='#121212')
+    wedges, texts, autotexts = ax.pie(
+    sizes,
+    autopct='%1.1f%%',
+    colors=colors,
+    textprops={'color': "white", 'fontsize': 20}  # ✅ Added font size here
+    )
+    plt.axis('equal')
+
+    # Add space between pie and legend
+    plt.subplots_adjust(bottom=0.25)  # Pushes legend down a bit
+
+    # Legend
+    legend_labels = [f"{label}: {size}" for label, size in zip(labels, sizes)]
+    ax.legend(
+        wedges,
+        legend_labels,
+        title="Main Aspects",
+        loc='lower center',
+        bbox_to_anchor=(0.5, -0.5),  # More negative moves it further down
+        fontsize=20,
+        title_fontsize=20,
+        frameon=False,
+        labelcolor='white'
+    )
+
+
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', facecolor='#121212')
+    buf.seek(0)
+    encoded = base64.b64encode(buf.read()).decode('utf-8')
+    buf.close()
+    return encoded
+
+
+import io
+import re
+from pdfminer.high_level import extract_text as pdf_extract_text
+from docx import Document
+
+def extract_resume_text(file) -> str:
+    """
+    Accepts InMemoryUploadedFile; returns plain text from PDF/DOCX/TXT.
+    """
+    name = (file.name or "").lower()
+    data = file.read()
+    file.seek(0)
+
+    if name.endswith(".pdf"):
+        try:
+            return pdf_extract_text(io.BytesIO(data))
+        except Exception:
+            pass
+    if name.endswith(".docx"):
+        try:
+            doc = Document(io.BytesIO(data))
+            return "\n".join(p.text for p in doc.paragraphs)
+        except Exception:
+            pass
+    # fallback: try decode as text
+    try:
+        return data.decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+def normalize_text(t: str) -> str:
+    return re.sub(r"\s+", " ", (t or "")).strip().lower()
+
+def keyword_match_rate(text: str, target_keywords: list[str]) -> float:
+    if not target_keywords:
+        return 0.0
+    t = normalize_text(text)
+    hits = sum(1 for kw in target_keywords if kw.lower() in t)
+    return hits / max(1, len(target_keywords))
+
+# ===== Resume ATS (15 pts) =====
+
+def ats_resume_scoring(metrics: dict) -> dict:
+    """
+    Resume (ATS Readiness) breakdown = 15 pts total, plus a normalized score out of 100.
+    Subcriteria:
+      - Layout & structure (3)
+      - Action verbs & quantified results (4)
+      - Keyword alignment (3)
+      - Brevity & conciseness (2)
+      - Minimal jargon / repetition (3)
+    Returns:
+      {
+        "items": [...],
+        "subtotal": {"earned": <0..15>, "max": 15},
+        "score_100": <0..100>  # normalized percentage
+      }
+    """
+    b = {"items": []}
+    total = 0
+    MAX_ATS = 15
+
+    # 1) Layout & structure — 3
+    pts_layout = int(bool(metrics.get("sections_present"))) \
+               + int(bool(metrics.get("single_column"))) \
+               + int(bool(metrics.get("text_extractable")))
+    b["items"].append({"name": "ATS-friendly layout & structure", "earned": pts_layout, "max": 3})
+    total += pts_layout
+
+    # 2) Action verbs & quantified results — 4
+    av = float(metrics.get("action_verbs_per_bullet", 0.0))
+    qr = float(metrics.get("quantified_bullets_ratio", 0.0))
+    pts_actions = (2 if av >= 0.8 else 1 if av >= 0.5 else 0) \
+                + (2 if qr >= 0.6 else 1 if qr >= 0.3 else 0)
+    b["items"].append({"name": "Action verbs & quantified results", "earned": pts_actions, "max": 4})
+    total += pts_actions
+
+    # 3) Keyword alignment — 3
+    kmr = float(metrics.get("keyword_match_rate", 0.0))
+    pts_keywords = 3 if kmr >= 0.75 else 2 if kmr >= 0.5 else 1 if kmr >= 0.3 else 0
+    b["items"].append({"name": "Job-relevant keyword alignment", "earned": pts_keywords, "max": 3})
+    total += pts_keywords
+
+    # 4) Brevity & conciseness — 2
+    pages = int(metrics.get("pages", 2))
+    avg_bullets = float(metrics.get("avg_bullets_per_job", 6.0))
+    pts_brev = (1 if pages <= 2 else 0) + (1 if avg_bullets <= 7 else 0)
+    b["items"].append({"name": "Brevity & conciseness", "earned": pts_brev, "max": 2})
+    total += pts_brev
+
+    # 5) Minimal jargon / repetition — 3
+    rep = float(metrics.get("repetition_rate", 0.15))
+    jar = float(metrics.get("jargon_rate", 0.2))
+    usk = int(metrics.get("unique_skills_count", 8))
+    pts_clean = (1 if rep <= 0.10 else 0) + (1 if jar <= 0.15 else 0) + (1 if usk >= 8 else 0)
+    b["items"].append({"name": "Minimal jargon / repetition", "earned": pts_clean, "max": 3})
+    total += pts_clean
+
+    # Totals and normalized score
+    b["subtotal"] = {"earned": total, "max": MAX_ATS}
+    b["score_100"] = int(round((total / MAX_ATS) * 100))
+
+    return b
+
+
+# Role keyword lists (used for metrics + role match for non-tech)
+ROLE_KEYWORDS = {
+    # Technical
+    "software engineer": ["python","java","javascript","react","node","docker","kubernetes","microservices","rest","graphql","aws","gcp","ci/cd","unit testing"],
+    "data scientist": ["python","pandas","numpy","sklearn","tensorflow","pytorch","nlp","cv","statistics","sql","experiment","a/b testing","data visualization"],
+    "devops engineer": ["ci/cd","docker","kubernetes","terraform","ansible","aws","gcp","azure","monitoring","prometheus","grafana","helm","sre"],
+    "web developer": ["html","css","javascript","react","next.js","vue","node","express","rest","graphql","responsive","seo"],
+    "mobile app developer": ["android","ios","kotlin","swift","flutter","react native","firebase","push notifications","play store","app store"],
+    # Non-technical
+    "human resources": ["recruitment","onboarding","payroll","employee engagement","hrms","policy","compliance","talent acquisition","grievance","training"],
+    "marketing": ["seo","sem","campaign","content","email marketing","social media","analytics","branding","roi","conversion","google ads"],
+    "sales": ["crm","pipeline","lead generation","negotiation","quota","prospecting","closing","upsell","cross-sell","demo"],
+    "finance": ["budgeting","forecasting","reconciliation","audit","financial analysis","p&l","variance","sap","tally","excel"],
+    "customer service": ["crm","zendesk","freshdesk","sla","csat","ticketing","call handling","escalation","knowledge base","communication"],
+}
+
+def derive_resume_metrics(resume_text: str, role_title: str) -> dict:
+    t = normalize_text(resume_text)
+    sections_present = any(k in t for k in ["experience","work history"]) and ("education" in t) and ("skills" in t)
+    single_column = True  # assume single column unless you detect otherwise
+    text_extractable = len(t) > 0
+
+    # Simple action verbs & bullets heuristics
+    action_verbs = ["led","built","created","designed","implemented","developed","optimized","increased","reduced","launched","migrated","improved","delivered"]
+    action_verb_hits = sum(len(re.findall(rf"(^|\n|•|\-)\s*({v})\b", resume_text, flags=re.I)) for v in action_verbs)
+    bullets = max(1, len(re.findall(r"(\n•|\n-|\n\d+\.)", resume_text)))
+    action_verbs_per_bullet = min(1.0, action_verb_hits / bullets)
+
+    quantified_bullets_ratio = min(1.0, len(re.findall(r"\b\d+(\.\d+)?%?|\b(k|m|bn)\b", resume_text, flags=re.I)) / max(1, bullets))
+
+    # very rough page estimate
+    pages = max(1, round(len(resume_text) / 2000))
+    avg_bullets_per_job = min(12.0, bullets / max(1, len(re.findall(r"\b(company|employer|experience)\b", t))))
+
+    # keyword alignment
+    base_role = next((rk for rk in ROLE_KEYWORDS if rk in role_title.lower()), None)
+    kws = ROLE_KEYWORDS.get(base_role, [])
+    kmr = keyword_match_rate(resume_text, kws) if kws else 0.0
+
+    # repetition/jargon
+    repetition_rate = 0.08 if "responsible for" not in t else 0.18
+    jargon_rate = 0.12 if "synergy" not in t and "leverage" not in t else 0.22
+
+    # crude unique skills count
+    unique_skills_count = len(set(re.findall(r"[a-zA-Z][a-zA-Z0-9\+\#\.\-]{1,20}", resume_text))) // 50
+    unique_skills_count = max(0, min(unique_skills_count, 15))
+
+    return {
+        "sections_present": sections_present,
+        "single_column": single_column,
+        "text_extractable": text_extractable,
+        "action_verbs_per_bullet": action_verbs_per_bullet,
+        "quantified_bullets_ratio": quantified_bullets_ratio,
+        "keyword_match_rate": kmr,
+        "pages": pages,
+        "avg_bullets_per_job": avg_bullets_per_job,
+        "repetition_rate": repetition_rate,
+        "jargon_rate": jargon_rate,
+        "unique_skills_count": unique_skills_count,
+    }

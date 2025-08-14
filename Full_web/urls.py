@@ -11,10 +11,12 @@ urlpatterns = [
     path('about_us/', views.about_us, name='about_us'),
 
     # OTP Views
-    path('send-otp/', views.send_otp, name='send_otp'),
-    path('verify-otp/', views.verify_otp, name='verify_otp'),
-    path('send-signup-otp/', views.send_signup_otp, name='send_signup_otp'),
-    path('verify-signup-otp/', views.verify_signup_otp, name='verify_signup_otp'),
+   path("send-signup-otp", views.send_signup_otp, name="send_signup_otp"),
+    path("verify-signup-otp", views.verify_signup_otp, name="verify_signup_otp"),
+
+    # LOGIN (email -> email OTP)
+    path("send-email-otp", views.send_login_otp, name="send_email_otp"),
+    path("verify-email-otp", views.verify_login_otp, name="verify_email_otp"),
 
     # Resume Analyzer Views
     path('upload_resume/', views.upload_resume, name='upload_resume'),
@@ -28,4 +30,9 @@ urlpatterns = [
     path('payment_instructions/<int:plan_id>/', views.payment_instructions, name='payment_instructions'),
     path('submit_payment_details/', views.submit_payment_details, name='submit_payment_details'),
     path('payment_submission_success/', views.payment_submission_success, name='payment_submission_success'),
+    path('download_resume_report/', views.download_resume_pdf, name='download_resume_report'),
+
+    path("report/technical/", views.show_report_technical, name="show_report_technical"),
+    path("report/non-technical/", views.show_report_nontechnical, name="show_report_nontechnical"),
+
 ]
