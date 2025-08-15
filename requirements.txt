@@ -1,6 +1,3 @@
-
-fitz
-random
 matplotlib
 base64
 xhtml2pdf
