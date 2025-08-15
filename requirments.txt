@@ -1,0 +1,10 @@
+docx2txt
+PyPDF2
+BeautifulSoup
+fitz
+random
+matplotlib
+base64
+xhtml2pdf
+json
+django
