@@ -1,8 +1,11 @@
 # api/index.py
-import os
-from asgiref.wsgi import WsgiToAsgi
+import os, sys, traceback
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Full_web.settings")
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Full_web.settings")  # <- change name
-from django.core.wsgi import get_wsgi_application
-
-app = WsgiToAsgi(get_wsgi_application())
+try:
+    from django.core.asgi import get_asgi_application
+    app = get_asgi_application()   # Vercel looks for `app`
+except Exception as e:
+    print("❌ Django ASGI init failed:", repr(e), file=sys.stderr)
+    traceback.print_exc()
+    raise

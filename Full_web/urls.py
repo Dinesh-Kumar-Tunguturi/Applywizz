@@ -1,10 +1,17 @@
 from django.urls import path
 from main import views
 from main import auth_views, payment_views, score_utils
+from django.contrib import admin
+from django.http import HttpResponse
+from django.urls import path
+
+def health(_req):
+    return HttpResponse("ok")
 
 urlpatterns = [
     # Basic Views
     path('', views.landing, name='landing'),
+    path("health/", health),
     path('signin/', views.signin, name='signin'),
     path('login/', views.login_view, name='login'),
     path('signup/', views.signup, name='signup'),
