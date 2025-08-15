@@ -19,7 +19,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 # Twilio (use environment/setting variables, not hard-coded)
-from twilio.rest import Client
 
 # ========= Your utils (as referenced in your file) =========
 from .utils import (
@@ -291,6 +290,15 @@ import matplotlib.pyplot as plt
 from typing import Dict
 import io, base64
 import matplotlib.pyplot as plt
+import os
+
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/mpl")  # font cache in writable dir
+os.makedirs("/tmp/mpl", exist_ok=True)
+
+import matplotlib
+matplotlib.use("Agg")  # headless backend for serverless
+import matplotlib.pyplot as plt
+
 
 def generate_pie_chart_tech(sections: Dict) -> str | None:
     """
