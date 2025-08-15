@@ -7,4 +7,5 @@ docx2txt>=0.9
 beautifulsoup4>=4.12,<5
 lxml>=5.2.1
 twilio>=9.0.0,<10
+matplotlib>=3.10.0,<3.11
 
