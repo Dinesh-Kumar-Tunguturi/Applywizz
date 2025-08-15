@@ -1,10 +1,14 @@
-matplotlib
-xhtml2pdf
-json
-Django>=4.2
-asgiref>=3.7
-whitenoise>=6.0
-beautifulsoup4>=4.12.3
+# --- Web framework ---
+Django>=4.2,<5.1
+whitenoise>=6.7
+
+# --- Document parsing ---
+PyMuPDF>=1.24,<1.25     # provides `import fitz`
 PyPDF2>=3.0.1
 docx2txt>=0.9
+beautifulsoup4>=4.12,<5
 lxml>=5.2.1
+
+# --- Optional / only if you truly use it on-server ---
+# xhtml2pdf>=0.2.17    # pulls reportlab; enable only if you render PDFs server-side
+# matplotlib>=3.10.0   # heavy; avoid on serverless unless required
