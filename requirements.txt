@@ -1,5 +1,4 @@
 matplotlib
-base64
 xhtml2pdf
 json
 Django>=4.2
