@@ -1,5 +1,6 @@
 # api/index.py
 import os, sys, traceback
+
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "Full_web.settings")
 
 try:
