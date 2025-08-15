@@ -20,19 +20,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 
+import os
 from pathlib import Path
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 1) init + load .env (must come before any env("...") calls)
-env = environ.Env()
-environ.Env.read_env(BASE_DIR / ".env")
+# Initialise env
+env = environ.Env(
+    DEBUG=(bool, False),
+)
 
-# 2) core settings that also use env
+# Only read .env locally; on Vercel you'll use dashboard env vars
+env_file = BASE_DIR / ".env"
+if env_file.exists():
+    environ.Env.read_env(env_file)
+
 SECRET_KEY = env("DJANGO_SECRET_KEY")
-DEBUG = env.bool("DEBUG", default=True)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["127.0.0.1", "localhost"])
+DEBUG = env("DEBUG", default=False)
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
+
 
 # 3) ✅ PLACE YOUR EMAIL BLOCK HERE
 EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.smtp.EmailBackend")
