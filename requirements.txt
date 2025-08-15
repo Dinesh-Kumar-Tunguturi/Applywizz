@@ -1,6 +1,4 @@
-docx2txt
-PyPDF2
-BeautifulSoup
+
 fitz
 random
 matplotlib
@@ -10,3 +8,7 @@ json
 Django>=4.2
 asgiref>=3.7
 whitenoise>=6.0
+beautifulsoup4>=4.12.3
+PyPDF2>=3.0.1
+docx2txt>=0.9
+lxml>=5.2.1
